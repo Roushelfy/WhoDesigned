@@ -1,3 +1,4 @@
+from textwrap import indent
 import numpy as np
 from collections import Counter
 from itertools import combinations
@@ -7,6 +8,7 @@ class move_generator():
         self.card_scale = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K']
         self.suit_set = ['s', 'h', 'c', 'd']
         self.point_order = ['2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K', 'A']
+        self.value_cards = ['5', '0','K']
         self.Major = ["jo", "Jo"]
         self.major = major
         self.level = level
@@ -46,28 +48,72 @@ class move_generator():
                         self.played[(history[2] + player_rec) % 4].extend(history[0][player_rec])
                         for card in history[0][player_rec]:
                             self.cards_left.remove(card)
+        # 还原当前请求
+        curr_request = req["requests"][-1]
+        if curr_request["stage"] == "play":
+            his_current=curr_request["history"][1]
+            for card in his_current:
+                self.cards_left.remove(card)
         self.organized_hold_cards = self.organize_cards(self.hold)
         self.organized_left_cards = self.organize_cards(self.cards_left)
-        
+    def isMajor(self, card):
+        return card[0] == self.major or card[1] == 'o' or card[1] == self.level
+    def card_level(self, card):
+        if not self.isMajor(card):
+            return self.point_order.index(card[1])
+        else:
+            if card[1] == self.level:
+                if card[0]==self.major:
+                    return 114
+                else:
+                    return 113
+            if card=="Jo":
+                return 116
+            if card=="jo":
+                return 115
+            return self.point_order.index(card[1])+100
     def organize_cards(self,cards):
         # 1. 将 hold 中的每张牌转化为扑克格式
         converted_cards = [self.Num2Poker(card) for card in cards]
 
         # 2. 按照主花色和副花色分类
-        main_suit_cards = [card for card in converted_cards if card[0] == self.major or card == "Jo" or card == "jo" or card[1]==self.level]
+        main_suit_cards = [card for card in converted_cards if self.isMajor(card)]
         other_suits_cards = {suit: [] for suit in self.suit_set if suit != self.major}
 
-        for card in converted_cards:
-            if card == "Jo" or card == "jo" :
-                main_suit_cards.append(card)    
-            elif card[0] != self.major and card[1] != self.level:
+        for card in converted_cards:   
+            if not self.isMajor(card):
                 other_suits_cards[card[0]].append(card)
 
         # 3. 对每一类牌进行排序（按点数排序）
-        main_suit_cards.sort(key=lambda x: self.card_scale.index(x[1]))
+        main_suit_cards.sort(key=lambda x: self.card_level(x) )
         for suit in other_suits_cards:
-            other_suits_cards[suit].sort(key=lambda x: self.card_scale.index(x[1]))
+            other_suits_cards[suit].sort(key=lambda x: self.card_level(x))
 
+        major_single, major_pairs=self.divide_suit(main_suit_cards)
+
+        major_tractors=self.divide_pairs(major_pairs,1)
+
+        #移除长度为1的拖拉机
+        major_tractors=[tractor for tractor in major_tractors if int(tractor[-1])>1]
+
+        #把拖拉机按照长度排序
+        major_tractors.sort(key=lambda x: int(x[-1]))
+
+        main_suit_cards = {
+            "singles": major_single,
+            "pairs": major_pairs,
+            "tractors": major_tractors
+        }
+        for suit in other_suits_cards:
+            singles, pairs=self.divide_suit(other_suits_cards[suit])
+            tractors=self.divide_pairs(pairs,1)
+            tractors=[tractor for tractor in tractors if int(tractor[-1])>1]
+            tractors.sort(key=lambda x: int(x[-1]))
+            other_suits_cards[suit] = {
+                "singles": singles,
+                "pairs": pairs,
+                "tractors": tractors
+            }
         return {
             "main_suit_cards": main_suit_cards,
             "other_suits_cards": other_suits_cards
@@ -257,7 +303,92 @@ class move_generator():
             self.reg_generator(new_deck, new_move, new_pok, moves)
             
         return
-            
+    def get_shortest_other_suit(self):
+        #获得最短的非空副花色
+        min_len = 100
+        min_suit = ''
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]) < min_len and len(self.organized_hold_cards["other_suits_cards"][suit]) > 0:
+                min_len = len(self.organized_hold_cards["other_suits_cards"][suit])
+                min_suit = suit
+        return min_suit
+    def divide_suit(self, tgt):
+        #把某种花色分为单牌和对子：
+        singles = []
+        pairs = []
+        for card in tgt:
+            #如果有两张
+            if tgt.count(card) == 2 and card not in pairs:
+                pairs.append(card)
+            elif tgt.count(card) == 1:
+                singles.append(card)
+        return singles, pairs
+    
+    def divide_pairs(self, tgt,first_tractor_len):
+        #从对子中提取拖拉机：
+        if (len(tgt)==0):
+            return []
+        elif (len(tgt)==1):
+            return [tgt[0]+str(first_tractor_len)]
+        elif (self.card_level(tgt[0])+1==self.card_level(tgt[1])):
+            return self.divide_pairs(tgt[1:],first_tractor_len+1)
+        elif (self.card_level(tgt[0])==self.card_level(tgt[1])):
+            return self.divide_pairs(tgt[1:],first_tractor_len)
+        else:
+            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
+
+    def is_largest_single(self, card):
+        if self.isMajor(card):
+            if self.card_level(card) >= self.organized_left_cards["main_suit_cards"]["singles"][-1]:
+                return True
+        else:
+            if self.card_level(card) >= self.organized_left_cards["other_suits_cards"][card[0]]["singles"][-1]:
+                return True
+        return False
+
+    def is_largest_pair(self, card):
+        if self.isMajor(card):
+            if self.card_level(card) >= self.organized_left_cards["main_suit_cards"]["pairs"][-1]:
+                return True
+        else:
+            if self.card_level(card) >= self.organized_left_cards["other_suits_cards"][card[0]]["pairs"][-1]:
+                return True
+        return False
+    def is_value(self, card):
+        if card[1] in self.value_cards:
+            return True
+        else:   
+            return False
+    def tractor_to_action(self,tractor):
+        action=[]
+        len=tractor[-1]
+        first_card=self.point_order.index(tractor[1])
+        for i in range(len):
+            action.append(tractor[0]+self.point_order[first_card+i])
+            action.append(tractor[0]+self.point_order[first_card+i])
+        return action
+
+    def gen_one_action(self):
+        #查看是否有拖拉机：
+        if len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0:
+            return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["tractors"])>0:
+                return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
+        #如果没有拖拉机，查看最短的副花色：
+        min_suit=self.get_shortest_other_suit()
+        #如果最短的副花色有最大的对子与最大的单牌：
+        largest_pair = self.organized_hold_cards["other_suits_cards"][min_suit]["pairs"][-1]
+        largest_single = self.organized_hold_cards["other_suits_cards"][min_suit]["singles"][-1]
+        if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
+            return [largest_pair,largest_pair,largest_single]
+        if self.is_largest_pair(largest_pair):
+            return [largest_pair,largest_pair]
+        if self.is_largest_single(largest_single):
+            return [largest_single]
+        #如果没有最大的对子和单牌，出最小的主牌：        
+        return [self.organized_hold_cards["main_suit_cards"]["singles"][0]]
+
     def gen_all(self, deck): # Generating all cardset options
         moves = []
         suit_decks = []
@@ -305,5 +436,6 @@ class move_generator():
                     moves.append(tracstreak+[])
                     
         return moves
+    
         
         
