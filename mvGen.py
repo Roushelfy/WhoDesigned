@@ -4,7 +4,7 @@ from collections import Counter
 from itertools import combinations
 
 class move_generator():
-    def __init__(self, level, major,req):
+    def __init__(self, level, major,req=None):
         self.card_scale = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K']
         self.suit_set = ['s', 'h', 'c', 'd']
         self.point_order = ['2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K', 'A']
@@ -26,36 +26,37 @@ class move_generator():
         for i in range(108):
             self.cards_left.append(i)
 
-        # 还原历史
-        for i in range(len(req["requests"])):
-            stage_req = req["requests"][i]
-            if stage_req["stage"] == "deal":
-                self.hold.extend(stage_req["deliver"])
-            elif stage_req["stage"] == "cover":
-                self.hold.extend(stage_req["deliver"])
-                action_cover = req["responses"][i]
-                for card in action_cover:
-                    self.hold.remove(card)
-                    self.cards_left.remove(card)
-            elif stage_req["stage"] == "play":
-                history = stage_req["history"]
-                selfid = (history[3] + len(history[1])) % 4
-                if len(history[0]) != 0:
-                    self_move = history[0][(selfid - history[2]) % 4]
-                    for card in self_move:
+        if req is not None:
+            # 还原历史
+            for i in range(len(req["requests"])):
+                stage_req = req["requests"][i]
+                if stage_req["stage"] == "deal":
+                    self.hold.extend(stage_req["deliver"])
+                elif stage_req["stage"] == "cover":
+                    self.hold.extend(stage_req["deliver"])
+                    action_cover = req["responses"][i]
+                    for card in action_cover:
                         self.hold.remove(card)
-                    for player_rec in range(len(history[0])):
-                        self.played[(history[2] + player_rec) % 4].extend(history[0][player_rec])
-                        for card in history[0][player_rec]:
-                            self.cards_left.remove(card)
-        # 还原当前请求
-        curr_request = req["requests"][-1]
-        if curr_request["stage"] == "play":
-            his_current=curr_request["history"][1]
-            for card in his_current:
-                self.cards_left.remove(card)
-        self.organized_hold_cards = self.organize_cards(self.hold)
-        self.organized_left_cards = self.organize_cards(self.cards_left)
+                        self.cards_left.remove(card)
+                elif stage_req["stage"] == "play":
+                    history = stage_req["history"]
+                    selfid = (history[3] + len(history[1])) % 4
+                    if len(history[0]) != 0:
+                        self_move = history[0][(selfid - history[2]) % 4]
+                        for card in self_move:
+                            self.hold.remove(card)
+                        for player_rec in range(len(history[0])):
+                            self.played[(history[2] + player_rec) % 4].extend(history[0][player_rec])
+                            for card in history[0][player_rec]:
+                                self.cards_left.remove(card)
+            # 还原当前请求
+            curr_request = req["requests"][-1]
+            if curr_request["stage"] == "play":
+                his_current=curr_request["history"][1]
+                for card in his_current:
+                    self.cards_left.remove(card)
+            self.organized_hold_cards = self.organize_cards(self.hold)
+            self.organized_left_cards = self.organize_cards(self.cards_left)
     def isMajor(self, card):
         return card[0] == self.major or card[1] == 'o' or card[1] == self.level
     def card_level(self, card):
@@ -339,19 +340,19 @@ class move_generator():
 
     def is_largest_single(self, card):
         if self.isMajor(card):
-            if self.card_level(card) >= self.organized_left_cards["main_suit_cards"]["singles"][-1]:
+            if len(self.organized_left_cards["main_suit_cards"]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["main_suit_cards"]["singles"][-1]):
                 return True
         else:
-            if self.card_level(card) >= self.organized_left_cards["other_suits_cards"][card[0]]["singles"][-1]:
+            if len(self.organized_left_cards["other_suits_cards"][card[0]]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["other_suits_cards"][card[0]]["singles"][-1]):
                 return True
         return False
 
     def is_largest_pair(self, card):
         if self.isMajor(card):
-            if self.card_level(card) >= self.organized_left_cards["main_suit_cards"]["pairs"][-1]:
+            if len(self.organized_left_cards["main_suit_cards"]["pairs"])==0 or self.card_level(card) >= self.organized_left_cards["main_suit_cards"]["pairs"][-1]:
                 return True
         else:
-            if self.card_level(card) >= self.organized_left_cards["other_suits_cards"][card[0]]["pairs"][-1]:
+            if len(self.organized_left_cards["other_suits_cards"][card[0]]["pairs"])==0 or self.card_level(card) >= self.organized_left_cards["other_suits_cards"][card[0]]["pairs"][-1]:
                 return True
         return False
     def is_value(self, card):
@@ -378,12 +379,13 @@ class move_generator():
         #如果没有拖拉机，查看最短的副花色：
         min_suit=self.get_shortest_other_suit()
         #如果最短的副花色有最大的对子与最大的单牌：
-        largest_pair = self.organized_hold_cards["other_suits_cards"][min_suit]["pairs"][-1]
         largest_single = self.organized_hold_cards["other_suits_cards"][min_suit]["singles"][-1]
-        if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
-            return [largest_pair,largest_pair,largest_single]
-        if self.is_largest_pair(largest_pair):
-            return [largest_pair,largest_pair]
+        if len(self.organized_hold_cards["other_suits_cards"][min_suit]["pairs"]) >0:
+            largest_pair = self.organized_hold_cards["other_suits_cards"][min_suit]["pairs"][-1]
+            if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
+                return [largest_pair,largest_pair,largest_single]
+            if self.is_largest_pair(largest_pair):
+                return [largest_pair,largest_pair]
         if self.is_largest_single(largest_single):
             return [largest_single]
         #如果没有最大的对子和单牌，出最小的主牌：        

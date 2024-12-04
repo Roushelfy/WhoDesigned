@@ -126,7 +126,7 @@ def playCard(history, hold, played, level, wrapper, mv_gen, model):
     }
     # generating action_options
     action_options = get_action_options(hold, history, level, mv_gen) 
-    print(action_options)
+    #print(action_options)
     # generating state
     state = {}
     obs_mat, action_mask = wrapper.obsWrap(obs, action_options)
@@ -172,17 +172,20 @@ def action_intpt(action, deck):
     return action
 
 _online = os.environ.get("USER", "") == "root"
-if _online:
-    full_input = json.loads(input())
-else:
-    with open("input/log_forAI.json") as fo:
-        full_input = json.load(fo)
 
 # loading model
 model = CNNModel()
-#data_dir = '/data/tractor_model.pt' # to be modified
-data_dir = 'checkpoint/tractor_model.pt' # to be modified
-model.load_state_dict(torch.load(data_dir, map_location = torch.device('cpu')))
+
+data_dir_online = '/data/tractor_model.pt' # to be modified
+data_dir_offline = 'checkpoint/tractor_model.pt' # to be modified
+if _online:
+    full_input = json.loads(input())
+    model.load_state_dict(torch.load(data_dir_online, map_location = torch.device('cpu')))
+else:
+    with open("input/log_forAI.json") as fo:
+        full_input = json.load(fo)
+    model.load_state_dict(torch.load(data_dir_offline, map_location = torch.device('cpu')))
+
 
 hold = []
 played = [[], [], [], []]
@@ -248,7 +251,7 @@ elif curr_request["stage"] == "play":
     response = playCard(history_curr, hold, played, level, card_wrapper, mv_gen, model)
 
 print(json.dumps({
-    "response": response
+    "response":response
 }))
 
 
