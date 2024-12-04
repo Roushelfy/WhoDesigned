@@ -3,7 +3,7 @@ from collections import Counter
 from itertools import combinations
 
 class move_generator():
-    def __init__(self, level, major):
+    def __init__(self, level, major,req):
         self.card_scale = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K']
         self.suit_set = ['s', 'h', 'c', 'd']
         self.point_order = ['2', '3', '4', '5', '6', '7', '8', '9', '0', 'J', 'Q', 'K', 'A']
@@ -17,7 +17,76 @@ class move_generator():
         else:
             self.Major = [suit + self.level for suit in self.suit_set] + self.Major
         
+        # 初始化手牌、已打牌和剩余牌
+        self.hold = []  # 玩家手牌
+        self.played = [[], [], [], []]  # 每个玩家已打牌
+        self.cards_left = []  # 剩余牌
+        for i in range(108):
+            self.cards_left.append(i)
+
+        # 还原历史
+        for i in range(len(req["requests"])):
+            stage_req = req["requests"][i]
+            if stage_req["stage"] == "deal":
+                self.hold.extend(stage_req["deliver"])
+            elif stage_req["stage"] == "cover":
+                self.hold.extend(stage_req["deliver"])
+                action_cover = req["responses"][i]
+                for card in action_cover:
+                    self.hold.remove(card)
+                    self.cards_left.remove(card)
+            elif stage_req["stage"] == "play":
+                history = stage_req["history"]
+                selfid = (history[3] + len(history[1])) % 4
+                if len(history[0]) != 0:
+                    self_move = history[0][(selfid - history[2]) % 4]
+                    for card in self_move:
+                        self.hold.remove(card)
+                    for player_rec in range(len(history[0])):
+                        self.played[(history[2] + player_rec) % 4].extend(history[0][player_rec])
+                        for card in history[0][player_rec]:
+                            self.cards_left.remove(card)
+        self.organized_hold_cards = self.organize_cards(self.hold)
+        self.organized_left_cards = self.organize_cards(self.cards_left)
         
+    def organize_cards(self,cards):
+        # 1. 将 hold 中的每张牌转化为扑克格式
+        converted_cards = [self.Num2Poker(card) for card in cards]
+
+        # 2. 按照主花色和副花色分类
+        main_suit_cards = [card for card in converted_cards if card[0] == self.major or card == "Jo" or card == "jo" or card[1]==self.level]
+        other_suits_cards = {suit: [] for suit in self.suit_set if suit != self.major}
+
+        for card in converted_cards:
+            if card == "Jo" or card == "jo" :
+                main_suit_cards.append(card)    
+            elif card[0] != self.major and card[1] != self.level:
+                other_suits_cards[card[0]].append(card)
+
+        # 3. 对每一类牌进行排序（按点数排序）
+        main_suit_cards.sort(key=lambda x: self.card_scale.index(x[1]))
+        for suit in other_suits_cards:
+            other_suits_cards[suit].sort(key=lambda x: self.card_scale.index(x[1]))
+
+        return {
+            "main_suit_cards": main_suit_cards,
+            "other_suits_cards": other_suits_cards
+        }
+    def Num2Poker(self,num): # num: int-[0,107]
+        # Already a poker
+        if type(num) is str and (num in self.Major or (num[0] in self.suit_set and num[1] in self.card_scale)):
+            return num
+        # Locate in 1 single deck
+        NumInDeck = num % 54
+        # joker and Joker:
+        if NumInDeck == 52:
+            return "jo"
+        if NumInDeck == 53:
+            return "Jo"
+        # Normal cards:
+        pokernumber = self.card_scale[NumInDeck // 4]
+        pokersuit = self.suit_set[NumInDeck % 4]
+        return pokersuit + pokernumber    
     def gen_single(self, deck, tgt):
         '''
         deck: player's deck

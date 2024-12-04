@@ -229,7 +229,7 @@ elif curr_request["stage"] == "play":
     setMajor(major, level)
     # instantiate move_generator and cardwrapper 
     card_wrapper = cardWrapper()
-    mv_gen = move_generator(level, major)
+    mv_gen = move_generator(level, major,full_input)
     history = curr_request["history"]
     selfid = (history[3] + len(history[1])) % 4
     if len(history[0]) != 0:
