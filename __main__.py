@@ -138,7 +138,7 @@ def playCard(history, hold, played, level, wrapper, mv_gen, model):
     return response
 
 
-def get_action_options(deck, history, level, mv_gen):
+def get_action_options(deck, history, level, mv_gen: move_generator):
     deck = [Num2Poker(p) for p in deck]
     if len(history) == 4 or len(history) == 0: # first to play
         #return mv_gen.gen_all(deck)
@@ -147,7 +147,8 @@ def get_action_options(deck, history, level, mv_gen):
         tgt = [Num2Poker(p) for p in history[0]]
         poktype = checkPokerType(history[0], level)
         if poktype == "single":
-            return mv_gen.gen_single(deck, tgt)
+            # return mv_gen.gen_single(deck, tgt)
+            return [mv_gen.gen_single_new(history)]
         elif poktype == "pair":
             return mv_gen.gen_pair(deck, tgt)
         elif poktype == "tractor":
