@@ -269,7 +269,8 @@ def get_action_options(deck, history, level, mv_gen):
         tgt = [Num2Poker(p) for p in history[0]]
         poktype = checkPokerType(history[0], level)
         if poktype == "single":
-            return mv_gen.gen_single(deck, tgt)
+            #return mv_gen.gen_single(deck, tgt)
+            return [mv_gen.gen_single_new(history)]
         elif poktype == "pair":
             return mv_gen.gen_pair(deck, tgt)
         elif poktype == "tractor":
