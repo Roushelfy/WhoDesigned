@@ -3,7 +3,6 @@ import numpy as np
 from collections import Counter
 from itertools import combinations
 import myutil
-
 class move_generator():
     def __init__(self, level, major,req=None):
         self.card_scale = myutil.cardscale
@@ -13,12 +12,6 @@ class move_generator():
         self.Major = myutil.Major
         self.major = major
         self.level = level
-        # self.point_order.remove(self.level)
-        # if self.major != 'n':
-        #     self.Major = [self.major+point for point in self.point_order if point != self.level] + \
-        #         [suit + level for suit in self.suit_set if suit != self.major] + [self.major + self.level] + self.Major
-        # else:
-        #     self.Major = [suit + self.level for suit in self.suit_set] + self.Major
         
         # 初始化手牌、已打牌和剩余牌
         self.hold = []  # 玩家手牌
@@ -33,12 +26,15 @@ class move_generator():
                 stage_req = req["requests"][i]
                 if stage_req["stage"] == "deal":
                     self.hold.extend(stage_req["deliver"])
+                    for card in stage_req["deliver"]:
+                        self.cards_left.remove(card)
                 elif stage_req["stage"] == "cover":
                     self.hold.extend(stage_req["deliver"])
+                    for card in stage_req["deliver"]:
+                        self.cards_left.remove(card)
                     action_cover = req["responses"][i]
                     for card in action_cover:
                         self.hold.remove(card)
-                        self.cards_left.remove(card)
                 elif stage_req["stage"] == "play":
                     history = stage_req["history"]
                     selfid = (history[3] + len(history[1])) % 4
@@ -48,8 +44,9 @@ class move_generator():
                             self.hold.remove(card)
                         for player_rec in range(len(history[0])):
                             self.played[(history[2] + player_rec) % 4].extend(history[0][player_rec])
-                            for card in history[0][player_rec]:
-                                self.cards_left.remove(card)
+                            if player_rec != (selfid - history[2]) % 4:
+                                for card in history[0][player_rec]:
+                                    self.cards_left.remove(card)
             # 还原当前请求
             curr_request = req["requests"][-1]
             if curr_request["stage"] == "play":
@@ -63,6 +60,7 @@ class move_generator():
         return myutil.isMajor(card,self.major,self.level)
     def card_level(self, card):
         return myutil.card_level(card,self.major,self.level)
+
     def organize_cards(self,cards):
         # 1. 将 hold 中的每张牌转化为扑克格式
         converted_cards = [self.Num2Poker(card) for card in cards]
@@ -95,6 +93,11 @@ class move_generator():
             "pairs": major_pairs,
             "tractors": major_tractors
         }
+
+        #按照长度排序
+        other_suits_cards = sorted(other_suits_cards.items(), key=lambda item: len(item[1]))
+        other_suits_cards = dict(other_suits_cards)
+
         for suit in other_suits_cards:
             singles, pairs=self.divide_suit(other_suits_cards[suit])
             tractors=self.divide_pairs(pairs,1)
@@ -109,10 +112,9 @@ class move_generator():
             "main_suit_cards": main_suit_cards,
             "other_suits_cards": other_suits_cards
         }
-    
     def Num2Poker(self,num): # num: int-[0,107]
         return myutil.Num2Poker(num) 
-      
+        
     def gen_single(self, deck, tgt):
         '''
         deck: player's deck
@@ -288,17 +290,27 @@ class move_generator():
         min_len = 100
         min_suit = ''
         for suit in suits:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]) < min_len and len(self.organized_hold_cards["other_suits_cards"][suit]) > 0:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]) < min_len :
                 min_len = len(self.organized_hold_cards["other_suits_cards"][suit])
                 min_suit = suit
-        return min_suit
+        return min_suit, min_len
     def divide_suit(self, tgt):
         #把某种花色分为单牌和对子
         return myutil.divide_suit(tgt)
+
     
     def divide_pairs(self, tgt,first_tractor_len):
-        #从对子中提取拖拉机
-        return myutil.divide_pairs(tgt,first_tractor_len,self.major,self.level)
+        #从对子中提取拖拉机：
+        if (len(tgt)==0):
+            return []
+        elif (len(tgt)==1):
+            return [tgt[0]+str(first_tractor_len)]
+        elif (self.card_level(tgt[0])+1==self.card_level(tgt[1])):
+            return self.divide_pairs(tgt[1:],first_tractor_len+1)
+        elif (self.card_level(tgt[0])==self.card_level(tgt[1])):
+            return self.divide_pairs(tgt[1:],first_tractor_len)
+        else:
+            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
 
     def is_largest_single(self, card):
         if self.isMajor(card):
@@ -324,16 +336,29 @@ class move_generator():
             return False
     def tractor_to_action(self,tractor):
         action=[]
-        len=tractor[-1]
-        first_card=self.point_order.index(tractor[1])
+        len=int(tractor[-1])
+        first_card=self.point_order.index(tractor[1])-len+1
         for i in range(len):
             action.append(tractor[0]+self.point_order[first_card+i])
             action.append(tractor[0]+self.point_order[first_card+i])
         return action
+    
+    def have_major(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
 
+    def play_major(self):   
+        if self.have_major():
+            #尝试出大对子
+            if self.have_major_pair():
+                return [self.organized_hold_cards["main_suit_cards"]["pairs"][-1],self.organized_hold_cards["main_suit_cards"]["pairs"][-1]]
+            #尝试出小单张
+            return [self.organized_hold_cards["main_suit_cards"]["singles"][0]]
+        return []
     def play_other_suit(self,suit):
+        if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:
+            return []
         largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
-        if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"]) >0:
+        if self.have_pair(suit):
             largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
             if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
                 return [largest_pair,largest_pair,largest_single]
@@ -342,22 +367,79 @@ class move_generator():
         if self.is_largest_single(largest_single):
             return [largest_single]
         return []
-
-    def gen_one_action(self):
-        #查看是否有拖拉机：
-        if len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0:
+    def play_major_tractor(self):
+        if self.have_major_tractor():
             return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]["tractors"])>0:
-                return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
-        #如果没有拖拉机，查看最短的副花色：
-        suits=self.organized_hold_cards["other_suits_cards"].keys()
-        min_suit=self.get_shortest_other_suit()
-        result=self.play_other_suit(min_suit)
-        
+        return []
+    def play_tractor(self,suit):
+        if self.have_tractor(suit):
+            return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
+        return []
+    def play_pair(self,suit):
+        if self.have_pair(suit):
+            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
+            return [largest_pair,largest_pair]
+        return []
+    
+    def play_single(self,suit):
+        if self.have_single(suit):
+            largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
+            return [largest_single]
+        return []
+    
+    def have_major_tractor(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0
 
-        #如果没有最大的对子和单牌，出最小的主牌：        
-        return [self.organized_hold_cards["main_suit_cards"]["singles"][0]]
+    def have_tractor(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["tractors"])>0
+
+    def have_major_pair(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["pairs"])>0
+    
+    def have_pair(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])>0
+    
+    def have_major_single(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
+
+    def have_single(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0
+    def gen_one_action(self):
+        result=[]
+        #查看是否有拖拉机：
+        result=self.play_major_tractor()
+        if len(result)>0:
+            return result
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_tractor(suit)
+            if len(result)>0:
+                return result
+        #如果没有拖拉机，从短往长出
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_other_suit(suit)
+            if len(result)>0:
+                return result
+
+        #如果没有最大的对子和单牌，尝试出主
+        result=self.play_major()
+        if len(result)>0:
+            return result
+        #如果没有主，尝试出副对子
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_pair(suit)
+            if len(result)>0:
+                return result
+        
+        #如果没有副对子，尝试出副单牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_single(suit)
+            if len(result)>0:
+                return result
+
+        #不应该到这里
+        print("Error: No action generated") 
+        return []
+
 
     def gen_all(self, deck): # Generating all cardset options
         moves = []
