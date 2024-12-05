@@ -87,10 +87,16 @@ def checkPokerType(poker, level): #poker: list[int]
     return "suspect"
 
 
-def isMajor(card, major, level):
+def isMajor(card,major,level):
+    if card==None:
+        return False
+    if len(card)==1:
+        return card[0]==major
     return card[0] == major or card[1] == 'o' or card[1] == level
 
 def card_level(card, major, level):
+    if card==None:
+        return -1
     if not isMajor(card, major, level):
         return pointorder.index(card[1])
     else:
