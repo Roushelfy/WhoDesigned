@@ -737,12 +737,33 @@ class move_generator():
             if len(result)>0:
                 return result
             
+        # 如果某门副牌只有一对，尝试出对子
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==1 and len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
+                result=self.play_pair(suit)
+                if len(result)>0:
+                    return result
+        #如果某门副牌只有一张牌，尝试出单牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
+                result=self.play_single(suit)
+                if len(result)>0:
+                    return result
+        #出队友没有的花色
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if self.trump_in(suit):
+                result= self.other_value(suit)
+            if result == None:
+                result = self.play_small(suit)
+        if result!=None:
+            return [result]
         #尝试出副对子
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_pair(suit)
             if len(result)>0:
                 return result
-            
+
+
         #如果没有最大的对子和单牌，尝试出主
         result=self.play_major()
         if len(result)>0:
