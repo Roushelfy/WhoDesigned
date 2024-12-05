@@ -117,52 +117,116 @@ def divide_suit(tgt):
             singles.append(card)
     return singles, pairs
 
-def divide_pairs(tgt,first_tractor_len,major,level):
-    #从对子中提取拖拉机
-    if (len(tgt)==0):
-        return []
-    elif (len(tgt)==1):
-        return [tgt[0]+str(first_tractor_len)]
-    elif (card_level(tgt[0],major,level)+1==card_level(tgt[1],major,level)):
-        return divide_pairs(tgt[1:],first_tractor_len+1,major,level)
-    elif (card_level(tgt[0],major,level)==card_level(tgt[1],major,level)):
-        return divide_pairs(tgt[1:],first_tractor_len,major,level)
-    else:
-        return [tgt[0]+str(first_tractor_len)]+divide_pairs(tgt[1:],1,major,level)
+def evaluate_suit(suit_poker, level):
+    singles, pairs = divide_suit(suit_poker)
+    singles = [card for card in singles if card not in pairs]
+    score = 0.0
+    for card in singles:
+        score += 1.0
+        if card[1] == level:
+            score += 0.5 
+        elif pointorder.index(card[1]) >= 8: # 10,J,Q,K,A
+            score += 0.1 * (pointorder.index(card[1]) - 7)
+    for card in pairs:
+        score += (2.0 + 0.2) 
+        if card[1] == level:
+            score += 1.0
+        elif pointorder.index(card[1]) >= 8: # 10,J,Q,K,A
+            score += 2 * 0.1 * (pointorder.index(card[1]) - 7)
+    return score
 
-def call_Snatch(get_card, deck, called, snatched, level):
+def evaluate_score(deck_poker,level):
+    suit_poker = {suit : [] for suit in suitset}
+    suit_poker['n'] = []
+    for card in deck_poker:
+        if card[1] == 'o':
+            suit_poker['n'].append(card)
+        else:
+            suit_poker[card[0]].append(card)
+    suit_score = {suit : evaluate_suit(suit_poker[suit], level) for suit in suitset}
+    # 级牌和王牌
+    suit_score['n'] = 0
+    singles, pairs = divide_suit(deck_poker)
+    for card in singles:
+        suit_score['n'] += 1.0
+        if card[1] == 'j':
+            suit_score['n'] += 0.5
+        elif card[1] == 'J':
+            suit_score['n'] += 1.0
+
+    for card in pairs:
+        suit_score['n'] += (2.0 + 0.3)
+        if card[1] == 'j':
+            suit_score['n'] += 1.0
+        elif card[1] == 'J':
+            suit_score['n'] += 2.0
+    return sorted(suit_score.items(), key=lambda item: item[1], reverse=True) # 从大到小考虑
+
+def call_Snatch(get_card, deck, called, snatched, level, major):
 # get_card: new card in this turn (int)
 # deck: your deck (list[int]) before getting the new card
 # called & snatched: player_id, -1 if not called/snatched
 # level: level
 # return -> list[int]
+#     response = []
+# ## 目前的策略是一拿到牌立刻报/反，之后不再报/反
+# ## 不反无主
+#     deck_poker = [Num2Poker(id) for id in deck]
+#     get_poker = Num2Poker(get_card)
+#     if get_poker[1] == level:
+#         if called == -1:
+#             response = [get_card]
+#         elif snatched == -1:
+#             if (get_card + 54) % 108 in deck:
+#                 response = [get_card, (get_card + 54) % 108]
+#     return response
     response = []
-## 目前的策略是一拿到牌立刻报/反，之后不再报/反
-## 不反无主
+    deck = deck + [get_card]
     deck_poker = [Num2Poker(id) for id in deck]
-    get_poker = Num2Poker(get_card)
-    if get_poker[1] == level:
-        if called == -1:
-            response = [get_card]
-        elif snatched == -1:
-            if (get_card + 54) % 108 in deck:
-                response = [get_card, (get_card + 54) % 108]
+    level_poker = [p[0] for p in deck_poker if isMajor(p,'n',level)]
+    if len(level_poker) == 0 or snatched != -1: # 无级牌或已被反
+        return response
+    suit_score = evaluate_score(deck_poker,level)
+    if called == -1:
+        for suit, score in suit_score:
+            if suit not in level_poker:
+                continue
+            if suit == 'n':
+                if score >= 100.0: # TODO : 无主
+                    break
+                continue
+            if score >= 5.6: # 亮
+                response = [Poker2Num(suit + level,deck)]
+                break
+    elif snatched == -1:
+        cnt = Counter(level_poker)
+        level_poker2 = [p for p in cnt.keys() if cnt[p] == 2]
+        major_score = dict(suit_score)[major]
+        for suit, score in suit_score:
+            if suit not in level_poker2:
+                continue
+            if suit == 'n' and score >= 100.0: # TODO : 无主
+                break
+            if major_score <= 4.0 or score >= major_score + 0.5: # 亮
+                lp = Poker2Num(suit + level,deck)
+                response = [lp, (lp + 54) % 108]
+                break
     return response
 
 
-def cover_Pub(old_public, deck, major, level):
+def cover_Pub(old_public, deck):
 # old_public: raw publiccard (list[int])
     # 将old_public中的牌全部加入到deck中并转化为扑克格式
-    """deck = deck + old_public
-    deck_poker = [Num2Poker(id) for id in deck]
-    # 整理各个花色的手牌
-    suit_cards = {suit: [] for suit in suitset}
-    suit_cards['n'] = []
-    for card in deck_poker:
-        if card[1] == 'o' or card[1] == level:
-            suit_cards['n'].append(card)
-        else:
-            suit_cards[card[0]].append(card)"""
+    # deck = deck + old_public
+    # deck_poker = [Num2Poker(id) for id in deck]
+    # # 整理各个花色的手牌
+    # suit_cards = {suit: [] for suit in suitset}
+    # suit_cards['n'] = []
+    # for card in deck_poker:
+    #     if card[1] == 'o' or card[1] == level:
+    #         suit_cards['n'].append(card)
+    #     else:
+    #         suit_cards[card[0]].append(card)
 
 
     

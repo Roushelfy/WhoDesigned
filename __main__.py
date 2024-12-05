@@ -59,7 +59,8 @@ if curr_request["stage"] == "deal":
     called = curr_request["global"]["banking"]["called"]
     snatched = curr_request["global"]["banking"]["snatched"]
     level = curr_request["global"]["level"]
-    response = call_Snatch(get_card, hold, called, snatched, level)
+    major = curr_request["global"]["banking"]["major"]
+    response = call_Snatch(get_card, hold, called, snatched, level, major)
 elif curr_request["stage"] == "cover":
     publiccard = curr_request["deliver"]
     response = cover_Pub(publiccard, hold)
