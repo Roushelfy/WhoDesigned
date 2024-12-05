@@ -3,161 +3,81 @@
         {
             "stage": "deal",
             "deliver": [
-                81
+                92
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             },
-            "playerpos": 3
+            "playerpos": 1
         },
         {
             "stage": "deal",
             "deliver": [
-                100
+                75
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                88
+                65
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                39
+                19
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                95
+                99
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                28
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": -1,
-                    "major": "d",
-                    "banker": 1
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                48
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": -1,
-                    "major": "d",
-                    "banker": 1
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                96
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": -1,
-                    "major": "d",
-                    "banker": 1
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                12
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": -1,
-                    "major": "d",
-                    "banker": 1
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                105
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             }
         },
@@ -170,26 +90,106 @@
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                75
+                11
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": -1,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "",
+                    "banker": -1
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                42
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": -1,
+                    "snatched": -1,
+                    "major": "",
+                    "banker": -1
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                41
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": -1,
+                    "snatched": -1,
+                    "major": "",
+                    "banker": -1
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                10
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": -1,
+                    "snatched": -1,
+                    "major": "",
+                    "banker": -1
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                79
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                69
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
                 }
             }
         },
@@ -202,10 +202,42 @@
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                63
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                104
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
                 }
             }
         },
@@ -218,39 +250,87 @@
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "c",
+                    "banker": 2
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                44
+                13
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": -1,
-                    "major": "d",
-                    "banker": 1
+                    "major": "c",
+                    "banker": 2
                 }
             }
         },
         {
             "stage": "deal",
             "deliver": [
-                58
+                0
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                88
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                38
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": -1,
+                    "major": "c",
+                    "banker": 2
+                }
+            }
+        },
+        {
+            "stage": "deal",
+            "deliver": [
+                32
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -260,13 +340,13 @@
         {
             "stage": "deal",
             "deliver": [
-                14
+                101
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -276,13 +356,13 @@
         {
             "stage": "deal",
             "deliver": [
-                55
+                9
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -292,29 +372,13 @@
         {
             "stage": "deal",
             "deliver": [
-                106
+                1
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
-                    "snatched": 2,
-                    "major": "h",
-                    "banker": 2
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                2
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -330,71 +394,7 @@
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
-                    "snatched": 2,
-                    "major": "h",
-                    "banker": 2
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                94
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": 2,
-                    "major": "h",
-                    "banker": 2
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                67
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": 2,
-                    "major": "h",
-                    "banker": 2
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                68
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
-                    "snatched": 2,
-                    "major": "h",
-                    "banker": 2
-                }
-            }
-        },
-        {
-            "stage": "deal",
-            "deliver": [
-                33
-            ],
-            "global": {
-                "first_round": true,
-                "level": "2",
-                "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -407,7 +407,22 @@
                 [],
                 [
                     [
-                        79
+                        20,
+                        74,
+                        24,
+                        78
+                    ],
+                    [
+                        70,
+                        54,
+                        86,
+                        82
+                    ],
+                    [
+                        12,
+                        16,
+                        44,
+                        98
                     ]
                 ],
                 2,
@@ -417,7 +432,7 @@
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
@@ -430,32 +445,87 @@
             "history": [
                 [
                     [
+                        20,
+                        74,
+                        24,
+                        78
+                    ],
+                    [
+                        70,
+                        54,
+                        86,
+                        82
+                    ],
+                    [
+                        12,
+                        16,
+                        44,
+                        98
+                    ],
+                    [
+                        0,
+                        32,
+                        38,
                         79
-                    ],
-                    [
-                        106
-                    ],
-                    [
-                        13
-                    ],
-                    [
-                        45
                     ]
                 ],
-                [],
+                [
+                    [
+                        102
+                    ],
+                    [
+                        48
+                    ],
+                    [
+                        90
+                    ]
+                ],
                 2,
-                3
+                2
             ],
             "global": {
                 "first_round": true,
                 "level": "2",
                 "banking": {
-                    "called": 1,
+                    "called": 2,
                     "snatched": 2,
                     "major": "h",
                     "banker": 2
                 },
                 "total_score": 0
+            }
+        },
+        {
+            "stage": "play",
+            "history": [
+                [
+                    [
+                        102
+                    ],
+                    [
+                        48
+                    ],
+                    [
+                        90
+                    ],
+                    [
+                        99
+                    ]
+                ],
+                [],
+                2,
+                1
+            ],
+            "global": {
+                "first_round": true,
+                "level": "2",
+                "banking": {
+                    "called": 2,
+                    "snatched": 2,
+                    "major": "h",
+                    "banker": 2
+                },
+                "total_score": 30
             }
         }
     ],
@@ -486,7 +556,13 @@
         [],
         [],
         [
-            106
+            0,
+            32,
+            38,
+            79
+        ],
+        [
+            99
         ]
     ]
 }
