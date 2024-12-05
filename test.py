@@ -1,3 +1,6 @@
-from myutil import Num2Poker
+from mvGen import move_generator
 
-print(Num2Poker(58))
+mv_gen = move_generator('2','c')
+
+response = mv_gen.cover_Pub()
+

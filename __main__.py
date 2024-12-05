@@ -4,7 +4,7 @@ from model import CNNModel
 import torch
 from wrapper import cardWrapper
 from mvGen import move_generator
-from myutil import setMajor, call_Snatch, cover_Pub, playCard
+from myutils import setMajor, call_Snatch, cover_Pub, playCard
 
 
 _online = os.environ.get("USER", "") == "root"
@@ -62,8 +62,12 @@ if curr_request["stage"] == "deal":
     major = curr_request["global"]["banking"]["major"]
     response = call_Snatch(get_card, hold, called, snatched, level, major)
 elif curr_request["stage"] == "cover":
-    publiccard = curr_request["deliver"]
-    response = cover_Pub(publiccard, hold)
+    publiccard = curr_request["deliver"]    
+    level = curr_request["global"]["level"]
+    major = curr_request["global"]["banking"]["major"]
+    mv_gen = move_generator(level, major,full_input)
+    response = mv_gen.cover_Pub()
+    #response = publiccard
 elif curr_request["stage"] == "play":
     level = curr_request["global"]["level"]
     major = curr_request["global"]["banking"]["major"]

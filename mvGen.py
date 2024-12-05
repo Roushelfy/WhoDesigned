@@ -2,14 +2,14 @@ from textwrap import indent
 import numpy as np
 from collections import Counter
 from itertools import combinations
-import myutil
+import myutils
 class move_generator():
     def __init__(self, level, major,req=None):
-        self.card_scale = myutil.cardscale
-        self.suit_set = myutil.suitset
-        self.point_order = myutil.pointorder
-        self.value_cards = myutil.valuecards
-        self.Major = myutil.Major
+        self.card_scale = myutils.cardscale
+        self.suit_set = myutils.suitset
+        self.point_order = myutils.pointorder
+        self.value_cards = myutils.valuecards
+        self.Major = myutils.Major
         self.major = major
         self.level = level
         
@@ -22,6 +22,7 @@ class move_generator():
 
         if req is not None:
             # 还原历史
+            lenreq = len(req["requests"])
             for i in range(len(req["requests"])):
                 stage_req = req["requests"][i]
                 if stage_req["stage"] == "deal":
@@ -32,9 +33,10 @@ class move_generator():
                     self.hold.extend(stage_req["deliver"])
                     for card in stage_req["deliver"]:
                         self.cards_left.remove(card)
-                    action_cover = req["responses"][i]
-                    for card in action_cover:
-                        self.hold.remove(card)
+                    if i < lenreq - 1:
+                        action_cover = req["responses"][i]
+                        for card in action_cover:
+                            self.hold.remove(card)
                 elif stage_req["stage"] == "play":
                     history = stage_req["history"]
                     selfid = (history[3] + len(history[1])) % 4
@@ -53,13 +55,92 @@ class move_generator():
                 his_current=curr_request["history"][1]
                 for cards in his_current:
                     for card in cards:
-                        self.cards_left.remove(card)
+                        self.cards_left.remove(card)      
             self.organized_hold_cards = self.organize_cards(self.hold)
-            self.organized_left_cards = self.organize_cards(self.cards_left)
+            self.organized_left_cards = self.organize_cards(self.cards_left)      
+        # else:# test cover
+        #     import random
+        #     self.all_cards = list(range(108))
+        #     self.hold = random.sample(self.all_cards, 32)
+        #     self.cards_left = [card for card in self.all_cards if card not in self.hold]
+        #     self.organized_hold_cards = self.organize_cards(self.hold)
+        #     self.organized_left_cards = self.organize_cards(self.cards_left)
+        #     print(self.organized_hold_cards["other_suits_cards"]['h'])
+        #     print(self.organized_hold_cards["other_suits_cards"]['d'])
+        #     print(self.organized_hold_cards["other_suits_cards"]['s'])
+            
     def isMajor(self, card):
-        return myutil.isMajor(card,self.major,self.level)
+        return myutils.isMajor(card,self.major,self.level)
     def card_level(self, card):
-        return myutil.card_level(card,self.major,self.level)
+        return myutils.card_level(card,self.major,self.level)
+
+    def cover_Pub(self):
+        # 找到每个副花色并排序
+        converted_cards = [self.Num2Poker(card) for card in self.hold]
+        other_suits_cards = {suit: [] for suit in self.suit_set if suit != self.major}
+        other_useless_singles = {suit: [] for suit in self.suit_set if suit != self.major}
+        other_value_singles = {suit: [] for suit in self.suit_set if suit != self.major}
+        other_useless_pairs = {suit: [] for suit in self.suit_set if suit != self.major}
+        for card in converted_cards:   
+            if not self.isMajor(card):
+                other_suits_cards[card[0]].append(card)
+        # 去掉各个花色不打算埋的牌
+        for suit in other_suits_cards:
+            other_suits_cards[suit].sort(key=lambda x: self.card_level(x))
+            singles, pairs = self.divide_suit(other_suits_cards[suit])
+            other_useless_singles[suit] = [p for p in singles if ((p not in pairs) and (not self.is_value(p)) and (not self.is_largest_single(p)))]
+            other_value_singles[suit] = [p for p in singles if ((p not in pairs) and self.is_value(p))]
+            other_useless_pairs[suit] = [p for p in pairs if ((not self.is_value(p)) and (not self.is_largest_pair(p)))] # 还要考虑一下拖拉机
+        
+        other_useless_singles = dict(sorted(other_useless_singles.items(), key=lambda item: len(item[1])))
+        other_value_singles = dict(sorted(other_value_singles.items(), key=lambda item: len(item[1])))
+        other_useless_pairs = dict(sorted(other_useless_pairs.items(), key=lambda item: len(item[1])))
+        
+        major_singles = self.organized_hold_cards["main_suit_cards"]["singles"]
+        major_pairs = self.organized_hold_cards["main_suit_cards"]["pairs"]
+                
+        public_cards = []
+        for suit, singles in other_useless_singles.items():# 先埋散牌
+            len_singles = len(singles)
+            len_left = 8 - len(public_cards)
+            if len_singles >= len_left:
+                public_cards.extend(singles[:len_left])
+                break
+            else:
+                public_cards.extend(singles)
+        while len(public_cards) < 8:
+            len_left = 8 - len(public_cards)
+            existvalue = 0
+            if existvalue == 0: # 补一张分
+                for suit, singles in other_value_singles.items():
+                    if len(singles) > 0:
+                        public_cards.append(singles[0])
+                        other_value_singles[suit].remove(singles[0])
+                        existvalue = 1
+                        break
+            if existvalue == 0:# 补一张主
+               for major_single in major_singles.items():
+                   if major_single not in major_pairs and not self.is_value(major_single):
+                       public_cards.append(major_single)
+                       major_singles.remove(major_single)
+                       existvalue = 1
+                       break
+            if existvalue == 0: # 拆副对
+                for suit, pairs in other_useless_pairs.items():
+                    if len(pairs) > 0:
+                        public_cards.append(pairs[0])
+                        other_useless_pairs[suit].remove(pairs[0])
+                        other_useless_singles[suit].append(pairs[0])
+                        existvalue = 1
+                        break
+            if existvalue == 0: # 拆主对
+                public_cards.append(major_pairs[0])
+                major_singles.append(major_pairs[0])
+                major_pairs.remove(major_pairs[0])
+
+        #print(public_cards)
+        return self.Poker2Num_seq(public_cards)
+
 
     def organize_cards(self,cards):
         # 1. 将 hold 中的每张牌转化为扑克格式
@@ -113,8 +194,11 @@ class move_generator():
             "other_suits_cards": other_suits_cards
         }
     def Num2Poker(self,num): # num: int-[0,107]
-        return myutil.Num2Poker(num) 
-        
+        return myutils.Num2Poker(num) 
+    def Poker2Num(self,poker):
+        return myutils.Poker2Num(poker,self.hold)
+    def Poker2Num_seq(self,pokers):
+        return myutils.Poker2Num_seq(pokers,self.hold)
     def gen_single(self, deck, tgt):
         '''
         deck: player's deck
@@ -296,7 +380,7 @@ class move_generator():
         return min_suit, min_len
     def divide_suit(self, tgt):
         #把某种花色分为单牌和对子
-        return myutil.divide_suit(tgt)
+        return myutils.divide_suit(tgt)
 
     
     def divide_pairs(self, tgt,first_tractor_len):
