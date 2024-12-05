@@ -723,13 +723,14 @@ class move_generator():
     def gen_one_action(self):
         result=[]
         #查看是否有拖拉机：
-        result=self.play_major_tractor()
-        if len(result)>0:
-            return result
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_tractor(suit)
             if len(result)>0:
                 return result
+        result=self.play_major_tractor()
+        if len(result)>0:
+            return result
+
         #如果没有拖拉机，从短往长出
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_other_suit(suit)
