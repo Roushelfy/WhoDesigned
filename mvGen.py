@@ -265,82 +265,82 @@ class move_generator():
                     result = self.play_small_major()
                 return [result]
             else:
-                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:
-                    card_to_beat=None
+                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:#我这门空了，尝试毙牌
+                    card_to_beat=None#寻找需要毙的最大牌
                     for card in self.organized_left_cards["main_suit_cards"]["singles"]:
-                        if self.is_value(card):
+                        if self.is_value(card):#至少盖过最大分
                             card_to_beat=card
-                    if(len(history)==1):
-                        if(self.empty_suits[self.next_id].count(suit)==0):
-                            card_to_beat=None
-                    elif(len(history)==2):
+                    if(len(history)==1):#上家出牌
+                        if(self.empty_suits[self.next_id].count(suit)==0):#下家还有
+                            card_to_beat=None#不用怕被盖毙
+                    elif(len(history)==2):#队友出牌
                         second_card=self.Num2Poker(history[1][0])
-                        if self.isMajor(second_card):
-                            card_to_beat=self.bigger_card(card_to_beat,second_card)
-                        elif (self.empty_suits[self.next_id].count(suit)==0):
-                            card_to_beat=None
-                    elif(len(history)==3):
+                        if self.isMajor(second_card):#被毙了
+                            card_to_beat=self.bigger_card(card_to_beat,second_card)#盖毙
+                        elif (self.empty_suits[self.next_id].count(suit)==0):#下家还有
+                            card_to_beat=None  #不用怕被盖毙
+                    elif(len(history)==3): #下家出牌
                         second_card=self.Num2Poker(history[1][0])
                         third_card=self.Num2Poker(history[2][0])
                         big_card=self.bigger_card(second_card,third_card)
-                        if self.value_in(history) and self.isMajor(big_card):
-                                card_to_beat=big_card
+                        if self.value_in(history) and self.isMajor(big_card):  #有分，且被毙了  #此时没有通过teammate_trump，只能是对面大
+                                card_to_beat=big_card #盖毙
                         else:
                             card_to_beat=None
                     if card_to_beat==None:
-                        result=self.major_value()
+                        result=self.major_value() #找到一张主的分牌
                         if result==None:
-                            result=self.play_small_major()
+                            result=self.play_small_major() #找到一张主的小牌
                         if(result==None):
-                            result=self.play_small()
+                            result=self.play_small() #找到一张非主的小牌
                     else:
-                        result=self.beat_card(card_to_beat)
+                        result=self.beat_card(card_to_beat) #盖毙
                         if result==None:
-                            result=self.play_small()
+                            result=self.play_small() #找到一张非主的小牌
                     return [result]
-                else:
+                else: #我这门还有牌
                      result=None
-                     if(len(history)==1 ):
-                        result = self.beat_card(self.bigger_card(first_card,self.largest_single_left(suit)))
-                     elif (len(history)==2):
+                     if(len(history)==1 ): #上家出牌
+                        result = self.beat_card(self.bigger_card(first_card,self.largest_single_left(suit))) #盖过上家，以及剩余牌中的最大单牌
+                     elif (len(history)==2):    #队友出牌
                         second_card=self.Num2Poker(history[1][0])
-                        result=self.beat_card(self.largest_single_left(suit))
-                        if result==None:
+                        result=self.beat_card(self.bigger_card(second_card,self.largest_single_left(suit)))  #盖过上家，以及剩余牌中的最大单牌
+                        if result==None: #盖不过，至少盖过上家
                             if self.card_level(second_card)>self.card_level(first_card) and second_card[0]==suit:
                                 result=self.beat_card(second_card)
-                     elif (len(history)==3):
+                     elif (len(history)==3): #下家出牌
                         first_card=self.Num2Poker(history[0][0])
                         third_card=self.Num2Poker(history[2][0])
-                        if third_card[0]==suit:
+                        if third_card[0]==suit:#上家没毙
                             result=self.beat_card(self.bigger_card(first_card,third_card))
                      if result==None:
                          result=self.play_small(suit)
                      return [result]
-        else:
+        else:#主牌
             card_to_beat=None
             first_card=self.Num2Poker(history[0][0])
             result=None
             for card in self.organized_left_cards["main_suit_cards"]["singles"]:
-                if self.is_value(card):
+                if self.is_value(card):#至少盖过最大分
                     card_to_beat=card
-            if(len(history)==1):
-                card_to_beat=self.bigger_card(card_to_beat,first_card)
-            elif (len(history)==2):
+            if(len(history)==1):#上家出牌
+                card_to_beat=self.bigger_card(card_to_beat,first_card) #盖过上家
+            elif (len(history)==2):   #队友出牌
                 second_card=self.Num2Poker(history[1][0])
-                if self.card_level(second_card)<=self.card_level(first_card):
-                    card_to_beat=self.bigger_card(card_to_beat,first_card)
-                else:
-                    if self.card_level(second_card)>=self.card_level(card_to_beat):
+                if self.card_level(second_card)<=self.card_level(first_card):#队友大
+                    if self.card_level(first_card)>self.card_level(card_to_beat):#队友大过最大分
                         card_to_beat=None
-            elif(len(history)==3):
+                else:#队友小
+                    card_to_beat=second_card
+            elif(len(history)==3): #下家出牌
                 second_card=self.Num2Poker(history[1][0])
                 third_card=self.Num2Poker(history[2][0])
-                if self.card_level(third_card)<=self.card_level(second_card) and self.card_level(second_card)>self.card_level(first_card):
+                if self.card_level(third_card)<=self.card_level(second_card) and self.card_level(second_card)>self.card_level(first_card): #队友大
                     card_to_beat=None
-                elif self.value_in(history):
-                    card_to_beat=self.bigger_card(first_card,third_card)
+                elif self.value_in(history): #有分
+                    card_to_beat=self.bigger_card(first_card,third_card) #盖过上家和下家
                 else:
-                    result= self.play_small_major()
+                    result= self.play_small_major() #找到一张主的小牌
                     if result==None:
                         result=self.play_small()
                     return [result]
@@ -413,15 +413,21 @@ class move_generator():
     def trump_in(self,suit):
         return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)==0
     
+
+    #外面都没了
     def all_empty(self,suit):
         return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.next_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)>0
     
+    #对面还有
     def enemy_not_empty(self,suit):
         return self.empty_suits[self.next_id].count(suit)==0 and self.empty_suits[self.prev_id].count(suit)==0
     
+
+    #对面没了，队友还有
     def off_trump(self,suit):
         return self.empty_suits[self.teammate_id].count(suit)==0 and (self.empty_suits[self.next_id].count(suit)>0 or self.empty_suits[self.prev_id].count(suit)>0)
     
+    #队友有把握在这一轮中是最大的
     def teammate_trump(self,history,suit):
         first_card=self.Num2Poker(history[0][0])
         if (len(history)==1): #上家出牌
@@ -434,6 +440,7 @@ class move_generator():
             third_card=self.Num2Poker(history[2][0])
             return self.card_level(second_card)>self.card_level(first_card) and self.card_level(second_card)>=self.card_level(third_card) 
 
+    #当前出牌轮次（history）有分
     def value_in(self,history):
         for cards in history:
             for card in cards:
