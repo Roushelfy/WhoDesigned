@@ -87,10 +87,16 @@ def checkPokerType(poker, level): #poker: list[int]
     return "suspect"
 
 
-def isMajor(card, major, level):
+def isMajor(card,major,level):
+    if card==None:
+        return False
+    if len(card)==1:
+        return card[0]==major
     return card[0] == major or card[1] == 'o' or card[1] == level
 
 def card_level(card, major, level):
+    if card==None:
+        return -1
     if not isMajor(card, major, level):
         return pointorder.index(card[1])
     else:
@@ -269,6 +275,7 @@ def get_action_options(deck, history, level, mv_gen):
         tgt = [Num2Poker(p) for p in history[0]]
         poktype = checkPokerType(history[0], level)
         if poktype == "single":
+            #return mv_gen.gen_single(deck, tgt)
             return [mv_gen.gen_single_new(history)]
         elif poktype == "pair":
             return mv_gen.gen_pair(deck, tgt)
