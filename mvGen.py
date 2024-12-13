@@ -793,7 +793,7 @@ class move_generator():
         return []
     def play_other_suit(self,suit):
         if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:
-            return []
+            return None
         largest_single = None
         for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
             if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
@@ -806,26 +806,26 @@ class move_generator():
                 return [largest_pair,largest_pair]
         if largest_single!= None and self.is_largest_single(largest_single):
             return [largest_single]
-        return []
+        return None
     def play_major_tractor(self):
         if self.have_major_tractor():
             return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
-        return []
+        return None
     def play_tractor(self,suit):
         if self.have_tractor(suit):
             return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
-        return []
+        return None
     def play_pair(self,suit):
         if self.have_pair(suit):
             largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
             return [largest_pair,largest_pair]
-        return []
+        return None
     
     def play_single(self,suit):
         if self.have_single(suit):
             largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
             return [largest_single]
-        return []
+        return None
     
     def have_major_tractor(self):
         return len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0
@@ -849,16 +849,16 @@ class move_generator():
         #查看是否有拖拉机：
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_tractor(suit)
-            if len(result)>0:
+            if result!=None:
                 return result
         result=self.play_major_tractor()
-        if len(result)>0:
+        if result!=None:
             return result
 
         #如果没有拖拉机，从短往长出大牌
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_other_suit(suit)
-            if len(result)>0:
+            if result!=None:
                 return result
             
         #出队友没有的花色
@@ -867,41 +867,41 @@ class move_generator():
                 result= self.other_value(suit)
             if result == None:
                 result = self.play_small(suit)
-        if result:
+        if result!=None:
             return [result]
             
         # 如果某门副牌只有一对或者只有对子，尝试出对子
         for suit in self.organized_hold_cards["other_suits_cards"]:
             if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==1 and len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
                 result=self.play_pair(suit)
-                if len(result)>0:
+                if result!=None:
                     return result
             if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==len(self.organized_hold_cards["other_suits_cards"][suit]["singles"]):
                 result=self.play_pair(suit)
-                if len(result)>0:
+                if result!=None:
                     return result
         #如果某门副牌只有一张牌，尝试出单牌
         for suit in self.organized_hold_cards["other_suits_cards"]:
             if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
                 result=self.play_single(suit)
-                if len(result)>0:
+                if result!=None:
                     return result
         #尝试出副对子
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_pair(suit)
-            if len(result)>0:
+            if result!=None:
                 return result
 
         #如果没有副对，尝试出主
         result=self.play_major()
-        if len(result)>0:
+        if result!=None:
             return result
 
         
         #如果没有主，尝试出副单牌
         for suit in self.organized_hold_cards["other_suits_cards"]:
             result=self.play_single(suit)
-            if len(result)>0:
+            if result!=None:
                 return result
 
         #不应该到这里
