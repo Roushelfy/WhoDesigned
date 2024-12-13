@@ -16,6 +16,9 @@ def setMajor(major, level):
     pointorder.remove(level)
     
 def Num2Poker(num): # num: int-[0,107]
+    #如果是list，就依次调用Num2Poker，再组成list返回
+    if type(num) is list:
+        return [Num2Poker(n) for n in num]
     # Already a poker
     if type(num) is str and (num in Major or (num[0] in suitset and num[1] in cardscale)):
         return num
@@ -278,7 +281,8 @@ def get_action_options(deck, history, level, mv_gen):
             #return mv_gen.gen_single(deck, tgt)
             return [mv_gen.gen_single_new(history)]
         elif poktype == "pair":
-            return mv_gen.gen_pair(deck, tgt)
+            #return mv_gen.gen_pair(deck, tgt)
+            return [mv_gen.gen_pair_new(history)]
         elif poktype == "tractor":
             return mv_gen.gen_tractor(deck, tgt)
         elif poktype == "suspect":

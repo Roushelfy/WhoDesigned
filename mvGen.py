@@ -1,7 +1,9 @@
+from re import S
 from textwrap import indent
 import numpy as np
 from collections import Counter
 from itertools import combinations
+
 import myutils
 class move_generator():
     def __init__(self, level, major,req=None):
@@ -233,7 +235,35 @@ class move_generator():
                 moves = [[p] for p in deck]
         
         return moves 
-    
+    def bigger_pair(self, pair1, pair2):
+        if pair1==None:
+            return pair2
+        if pair2==None:
+            return pair1
+        if not self.is_pair(pair1):
+            return pair2
+        if not self.is_pair(pair2):
+            return pair1
+        major1 = self.isMajor(pair1[0])
+        major2 = self.isMajor(pair2[0])
+        if major1 and not major2:
+            return pair1
+        if not major1 and major2:
+            return pair2
+        if major1 and major2:
+            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
+                return pair1
+            else:
+                return pair2
+            
+        if not major1 and not major2:
+            if pair1[0] != pair2[0]:
+                return pair1
+            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
+                return pair1
+            else:
+                return pair2
+        
     def bigger_card(self, card1, card2):
         if card1==None:
             return card2
@@ -246,14 +276,14 @@ class move_generator():
         if not major1 and major2:
             return card2
         if major1 and major2:
-            if self.card_level(card1) > self.card_level(card2):
+            if self.card_level(card1) >= self.card_level(card2):
                 return card1
             else:
                 return card2
         if not major1 and not major2:
             if card1[0] != card2[0]:
                 return card1
-            if self.card_level(card1) > self.card_level(card2):
+            if self.card_level(card1) >= self.card_level(card2):
                 return card1
             else:
                 return card2
@@ -397,7 +427,86 @@ class move_generator():
             if result==None:
                 result=self.play_small()
             return [result]
-                    
+    
+    def gen_pair_new(self, history):
+        first_card=self.Num2Poker(history[0][0])
+        first_cards=self.Num2Poker(history[0])
+        suit=first_card[0]
+        if not self.isMajor(first_card):
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0 :#我这门空了，尝试毙牌
+                if(len(history)==1):#上家出牌
+                    result=self.play_major_pair() #找到一对主
+                elif(len(history)==2):#队友出牌
+                    second_cards=self.Num2Poker(history[1])
+                    if self.is_major_pair(second_cards):#被毙了
+                        result=self.beat_pair(second_cards)#盖毙
+                    elif self.is_pair(second_cards) and not self.bigger_card(second_cards[0],first_card):#队友小
+                        result=self.play_major_pair() #毙
+                    else:
+                        result=self.play_value_tachi(2)
+                elif(len(history)==3): #下家出牌
+                    second_cards=self.Num2Poker(history[1])
+                    third_cards=self.Num2Poker(history[2])
+                    if not self.bigger_pair(first_cards,second_cards)==first_cards and self.bigger_pair(second_cards,third_cards) == second_cards:
+                        result=self.play_value_tachi(2)
+                    else:
+                        result=self.play_major_pair()
+                if result==None:
+                    result=self.play_small_tachi(2)
+            else: #我这门还有牌
+                 result=None
+                 if(len(history)==1 ): #上家出牌
+                    result = self.beat_pair(first_cards)#盖过上家
+                 elif (len(history)==2):    #队友出牌
+                    second_cards=self.Num2Poker(history[1])
+                    if self.bigger_pair(first_cards,second_cards)==second_cards:
+                        result=self.beat_pair(second_cards)#盖过上家
+                    elif self.have_pair(suit): #有对出对
+                        result=self.play_pair(suit)
+                    else:
+                        result=self.play_value_tachi(2,suit)
+                 elif (len(history)==3): #下家出牌
+                    second_cards=self.Num2Poker(history[1])
+                    third_cards=self.Num2Poker(history[2])
+                    if not self.bigger_pair(first_cards,second_cards)==first_cards and self.bigger_pair(second_cards,third_cards)==second_cards:
+                        result=self.play_value_tachi(2,suit)
+                 if result==None:
+                     result=self.play_small_tachi(2,suit)
+        else:#主牌
+            first_card=self.Num2Poker(history[0][0])
+            first_cards=self.Num2Poker(history[0])
+            result=None
+            if(len(history)==1):#上家出牌
+                result=self.beat_pair(first_cards)#盖过上家
+            elif (len(history)==2):   #队友出牌
+                second_cards= self.Num2Poker(history[1])
+                if not self.bigger_pair(first_cards,second_cards)==first_cards:
+                        result=self.beat_pair(second_cards)#盖过上家
+                elif self.have_major_pair(): #有对出对
+                    result=self.play_major_pair()
+                    if not self.bigger_pair(result,second_cards)==result:
+                        result= self.play_largest_major_pair()
+                else:
+                    result=self.play_major_value_tachi(2)
+            elif(len(history)==3): #下家出牌
+                second_cards=self.Num2Poker(history[1])
+                third_cards=self.Num2Poker(history[2])
+                if not self.bigger_pair(first_cards,second_cards)==first_cards and self.bigger_pair(second_cards,third_cards)==second_cards:
+                    if self.have_major_pair(): #有对出对
+                        result=self.play_major_pair()
+                        if not self.bigger_pair(result,second_cards)==result:
+                            result= self.play_largest_major_pair()
+                    else:
+                        result=self.play_major_value_tachi(2)
+                else:
+                    if self.value_in(history):
+                        if self.bigger_pair(first_cards,third_cards)==first_cards:
+                            result=self.beat_pair(first_cards)
+                        else:
+                            result=self.beat_pair(third_cards)
+            if result==None:
+                result=self.play_small_major_tachi(2)
+        return result
     def beat_card(self,card,if_equal=False):
         bias = 0
         if if_equal:
@@ -748,6 +857,55 @@ class move_generator():
                         return card
                 return self.organized_hold_cards["other_suits_cards"][suit]["singles"][0]
         return None
+    
+    def remove_one_card(self,card):
+        origin_orgainzed_hold_cards = self.organized_hold_cards
+        card_num= self.Poker2Num(card)
+        if card_num not in self.hold:
+            assert False
+        self.hold.remove(card_num)
+        self.organized_hold_cards = self.organize_cards(self.hold)
+        return origin_orgainzed_hold_cards
+    
+    def play_major_pair(self):
+        result=self.play_major_value_pair()
+        if result==None:
+            result=self.play_smallest_major_pair()
+        return result
+    def play_major_value_pair(self):
+        for card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+            if self.is_big_value(card):
+                return [card,card]
+        for card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+            if self.is_value(card):
+                return [card,card]
+        return None
+    
+    def play_smallest_major_pair(self):
+        if self.have_major_pair():
+            return [self.organized_hold_cards["main_suit_cards"]["pairs"][0],self.organized_hold_cards["main_suit_cards"]["pairs"][0]]
+        return None
+    
+    def play_largest_major_pair(self):
+        if self.have_major_pair():
+            return [self.organized_hold_cards["main_suit_cards"]["pairs"][-1],self.organized_hold_cards["main_suit_cards"]["pairs"][-1]]
+        return None
+    def is_major_pair(self,cards):
+        return self.isMajor(cards[0]) and cards[0] == cards[1]
+    def is_pair(self,cards):
+        return cards[0] == cards[1]
+    def beat_pair(self,cards):
+        if self.isMajor(cards[0]):
+            #找到最小的比card大的主对子
+            for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+                if self.card_level(my_card)>self.card_level(cards[0]):
+                    return [my_card,my_card]
+        else:
+            #找到最小的比card大的非主对子
+            for my_card in self.organized_hold_cards["other_suits_cards"][cards[0]]["pairs"]:
+                if self.card_level(my_card)>self.card_level(cards[0]):
+                    return [my_card,my_card]
+        return None
     def play_small_major(self):
         if self.have_major():
             #尝试出小单张
@@ -760,34 +918,95 @@ class move_generator():
             return self.organized_hold_cards["main_suit_cards"]["singles"][0]
         return None
     
-    def play_small_tachi(self,num,result=[],suit=None):
+    def play_small_major_tachi(self,num):
+        if num==0:
+            return []
+        result=[]
+        while len(result)<num:
+            card=self.play_small_major()
+            if card == None:
+                break
+            result.append(card)
+            self.remove_one_card(card)
+        result.extend(self.play_small_tachi(num-len(result)))
+        return result
+    def play_small_tachi(self,num,suit=None):
+        if num==0:
+            return []
+        result=[]
         if suit==None:
-            for i in range(num):
+            while(len(result)<num):
                 card=self.play_small()
                 if card == None:
-                    num = num - i
                     break
                 result.append(card)
-                if card not in self.organized_hold_cards["other_suits_cards"][card[0]]["pairs"]:
-                    self.organized_hold_cards["other_suits_cards"][card[0]]["singles"].remove(card)
-                else:
-                    self.organized_hold_cards["other_suits_cards"][card[0]]["pairs"].remove(card)
-            for i in range(num):
-                card=self.play_small_major()
-                assert card!=None
+                self.remove_one_card(card)
+            result.extend(self.play_small_major_tachi(num-len(result)))
+        else:
+            while(len(result)<num):
+                card=self.play_small(suit)
+                if card == None:
+                    break
                 result.append(card)
-                if card not in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-                    self.organized_hold_cards["main_suit_cards"]["singles"].remove(card)
-                else:
-                    self.organized_hold_cards["main_suit_cards"]["pairs"].remove(card)
-        return None
+                self.remove_one_card(card)
+            result.extend(self.play_small_tachi(num-len(result)))
+        return result
 
+    def play_value_tachi(self,num,suit=None):
+        if num==0:
+            return []
+        result=[]
+        if suit==None:
+            while len(result)<num:
+                card=self.other_value()
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            while len(result)<num:
+                card=self.major_value()
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_small_tachi(num-len(result)))
+        else:
+            while len(result)<num:
+                card=self.other_value(suit)
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            while len(result)<num:
+                card=self.play_small(suit) 
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_value_tachi(num-len(result)))
+        return result
+    
+
+    def play_major_value_tachi(self,num):
+        if num==0:
+            return []
+        result=[]
+        while len(result)<num:
+            card=self.major_value()
+            if card == None:
+                break
+            result.append(card)
+            self.remove_one_card(card)
+        result.extend(self.play_small_major_tachi(num-len(result)))
+        return result
+    
 
     def play_major(self):   
         if self.have_major():
             #尝试出大对子
-            if self.have_major_pair():
-                return [self.organized_hold_cards["main_suit_cards"]["pairs"][-1],self.organized_hold_cards["main_suit_cards"]["pairs"][-1]]
+            result=self.play_largest_major_pair()
+            if result!=None:
+                return result
             #尝试出小单张
             return [self.organized_hold_cards["main_suit_cards"]["singles"][0]]
         return []
