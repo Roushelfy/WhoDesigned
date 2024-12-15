@@ -31,6 +31,9 @@ def Num2Poker(num): # num: int-[0,107]
     pokersuit = suitset[NumInDeck % 4]
     return pokersuit + pokernumber
 
+def Num2Poker_seq(nums):
+    return [Num2Poker(num) for num in nums]
+
 def Poker2Num(poker, deck): # poker: str
     NumInDeck = -1
     if poker[0] == "j":
@@ -52,6 +55,11 @@ def Poker2Num_seq(pokers, deck):
         id_seq.append(card_id)
         deck_copy.remove(card_id)
     return id_seq
+
+def get_suit(poker,major,level):
+    if isMajor(poker,major,level):
+        return major
+    return poker[0]
     
 def checkPokerType(poker, level): #poker: list[int]
     poker = [Num2Poker(p) for p in poker]
@@ -221,27 +229,28 @@ def call_Snatch(get_card, deck, called, snatched, level, major):
 
 
 def cover_Pub(old_public, deck, major, level):
-    # old_public: raw publiccard (list[int])
-    deck_poker = [Num2Poker(id) for id in deck]
-    # 整理各个花色的手牌
-    suit_cards = {suit: [] for suit in suitset}
-    other_suit = [suit for suit in suitset].remove(major)
-    for s in other_suit:
-        suit_cards[s] = [p for p in deck_poker if p[0] == s and p[1] != level]
-    suit_cards[major] = [p for p in deck_poker if isMajor(p, major, level)]
+    return
+    # # old_public: raw publiccard (list[int])
+    # deck_poker = [Num2Poker(id) for id in deck]
+    # # 整理各个花色的手牌
+    # suit_cards = {suit: [] for suit in suitset}
+    # other_suit = [suit for suit in suitset].remove(major)
+    # for s in other_suit:
+    #     suit_cards[s] = [p for p in deck_poker if p[0] == s and p[1] != level]
+    # suit_cards[major] = [p for p in deck_poker if isMajor(p, major, level)]
     
-    for s in suit_cards.keys():
-        tgt = suit_cards[s]  
-        suit_cards[s] = divide_suit(tgt)
+    # for s in suit_cards.keys():
+    #     tgt = suit_cards[s]  
+    #     suit_cards[s] = divide_suit(tgt)
 
-    # 去掉各个花色不打算埋的牌
+    # # 去掉各个花色不打算埋的牌
         
     
-    # 贪心地尽量埋尽可能多的花色
-    public_cards = []
+    # # 贪心地尽量埋尽可能多的花色
+    # public_cards = []
 
-    return old_public
-    return old_public
+    # return old_public
+    # return old_public
 
 def playCard(history, hold, played, level, wrapper, mv_gen, model, selfid):
     # generating obs
@@ -278,11 +287,12 @@ def get_action_options(deck, history, level, mv_gen):
             #return mv_gen.gen_single(deck, tgt)
             return [mv_gen.gen_single_new(history)]
         elif poktype == "pair":
-            return mv_gen.gen_pair(deck, tgt)
+            #return mv_gen.gen_pair(deck, tgt)
+            return [mv_gen.gen_pair_new(history)]
         elif poktype == "tractor":
-            return mv_gen.gen_tractor(deck, tgt)
+            return [mv_gen.gen_tractor_new(history)]
         elif poktype == "suspect":
-            return mv_gen.gen_throw(deck, tgt)    
+            return [mv_gen.gen_throw_new(history)]    
 
 def obs2action(model, obs):
     model.train(False) # Batch Norm inference mode
