@@ -1245,7 +1245,7 @@ class move_generator():
             return []
         result=[]
         if self.have_pair(suit):
-            while(len(result)<num):
+            while(len(result)<num and self.have_pair(suit)):
                 pair=self.play_value_pair(suit)
                 if pair == None:
                     break
@@ -1281,7 +1281,7 @@ class move_generator():
             return []
         result=[]
         if self.have_major_pair():
-            while(len(result)<num):
+            while(len(result)<num and self.have_major_pair()):
                 pair=self.play_major_value_pair()
                 if pair == None:
                     break
