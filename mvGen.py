@@ -594,13 +594,13 @@ class move_generator():
                     result = self.play_value_pair_tachi(tractor_len,suit)
         else:#主牌
             if len(history) == 1 or len(history) == 3: #对面出牌
-                result = self.play_major_tractor(suit) # 有拖打拖
+                result = self.play_major_tractor() # 有拖打拖
                 if result == None:# 无拖垫牌
-                    result = self.play_small_major_pair_tachi(tractor_len,suit)
+                    result = self.play_small_major_pair_tachi(tractor_len)
             elif len(history) == 2: #队友出牌
-                result = self.play_major_tractor(suit) # 有拖打拖
+                result = self.play_major_tractor() # 有拖打拖
                 if result == None:# 无拖垫牌
-                    result = self.play_major_value_pair_tachi(tractor_len,suit)
+                    result = self.play_major_value_pair_tachi(tractor_len)
         return result
     
     def gen_throw_new(self, history):#假设只有队友会甩牌(一对加一张)且没有人会毙orz
