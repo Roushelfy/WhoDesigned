@@ -88,10 +88,21 @@ class move_generator():
         #     print(self.organized_hold_cards["other_suits_cards"]['d'])
         #     print(self.organized_hold_cards["other_suits_cards"]['s'])
             
-    def isMajor(self, card):
-        return myutils.isMajor(card,self.major,self.level)
-    def card_level(self, card):
-        return myutils.card_level(card,self.major,self.level)
+    # train
+    def reset(self,player,deck,played):
+        # self_id, teammate_id, next_id, prev_id, hold, card_left
+        self.selfid = player
+        self.teammate_id = (self.selfid + 2) % 4
+        self.next_id = (self.selfid + 1) % 4
+        self.prev_id = (self.selfid + 3) % 4
+        self.hold = deck[player]
+        all_played = played[0] + played[1] + played[2] + played[3]
+        self.cards_left = [card for card in range(108) if card not in all_played]
+        self.organized_hold_cards = self.organize_cards(self.hold)
+        self.organized_left_cards = self.organize_cards(self.cards_left)  
+        
+
+    # 埋牌
 
     def cover_Pub(self):
         # 找到每个副花色并排序
@@ -160,139 +171,77 @@ class move_generator():
         #print(public_cards)
         return self.Poker2Num_seq(public_cards)
 
+    # 生成出法(学习)
 
-    def organize_cards(self,cards):
-        # 1. 将 hold 中的每张牌转化为扑克格式
-        converted_cards = [self.Num2Poker(card) for card in cards]
+    def gen_single_options(self,tgt):
+        suit=self.get_suit(tgt[0])
+        options = []
+        options.append([self.play_small(suit)])
+        options.append([self.play_large(suit)])
+        options.append([self.other_value(suit)])
+        options.append([self.play_small()])
+        options.append([self.other_value()])
+        options.append([self.play_small_major()])
+        options.append([self.major_value()])
+        if self.major != 'n':
+            card_to_beat = self.get_card_to_beat()
+            if card_to_beat!= None:
+                options.append([self.beat_card(card_to_beat)])
+        options_1 = [option for option in options if option[0] != None]
+        if suit != self.major:
+            if self.have_single(suit):
+                options_2 = [option for option in options_1 if (option[0][0] == suit and not self.isMajor(option[0]))]
+                return options_2
+            return options_1
+        if self.have_major():
+            options_2 = [option for option in options_1 if self.isMajor(options[0])]
+            return options_2
+        return options_1
+    
+    def gen_action_options(self):
+        options = []
+        #拖拉机：
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            options.append(self.play_tractor(suit))
+        options.append(self.play_major_tractor())
 
-        # 2. 按照主花色和副花色分类
-        main_suit_cards = [card for card in converted_cards if self.isMajor(card)]
-        other_suits_cards = {suit: [] for suit in self.suit_set if suit != self.major}
-
-        for card in converted_cards:   
-            if not self.isMajor(card):
-                other_suits_cards[card[0]].append(card)
-
-        # 3. 对每一类牌进行排序（按点数排序）
-        main_suit_cards.sort(key=lambda x: self.card_level(x) )
-        for suit in other_suits_cards:
-            other_suits_cards[suit].sort(key=lambda x: self.card_level(x))
-
-        major_single, major_pairs=self.divide_suit(main_suit_cards)
-
-        major_tractors=self.divide_pairs(major_pairs,1)
-
-        #移除长度为1的拖拉机
-        major_tractors=[tractor for tractor in major_tractors if int(tractor[-1])>1]
-
-        #把拖拉机按照长度排序
-        major_tractors.sort(key=lambda x: int(x[-1]))
-
-        main_suit_cards = {
-            "singles": major_single,
-            "pairs": major_pairs,
-            "tractors": major_tractors
-        }
-
-        #按照长度排序
-        other_suits_cards = sorted(other_suits_cards.items(), key=lambda item: len(item[1]))
-        other_suits_cards = dict(other_suits_cards)
-
-        for suit in other_suits_cards:
-            singles, pairs=self.divide_suit(other_suits_cards[suit])
-            tractors=self.divide_pairs(pairs,1)
-            tractors=[tractor for tractor in tractors if int(tractor[-1])>1]
-            tractors.sort(key=lambda x: int(x[-1]))
-            other_suits_cards[suit] = {
-                "singles": singles,
-                "pairs": pairs,
-                "tractors": tractors
-            }
-        return {
-            "main_suit_cards": main_suit_cards,
-            "other_suits_cards": other_suits_cards
-        }
-    def Num2Poker(self,num): # num: int-[0,107]
-        if type(num) is list:
-            return myutils.Num2Poker_seq(num) 
-        return myutils.Num2Poker(num) 
-    def Poker2Num(self,poker):
-        return myutils.Poker2Num(poker,self.hold)
-    def Poker2Num_seq(self,pokers):
-        return myutils.Poker2Num_seq(pokers,self.hold)
-    def get_suit(self,card):
-        return myutils.get_suit(card,self.major,self.level)
-    def gen_single(self, deck, tgt):
-        '''
-        deck: player's deck
-        tgt: target cardset(list of cardnames)
-        '''
-        moves = []
-        if tgt[0] in self.Major:
-            moves = [[p] for p in deck if p in self.Major]
-            if len(moves) == 0: # No Major in deck
-                moves = [[p] for p in deck]
-        else:
-            moves = [[p] for p in deck if p[0] == tgt[0][0] and p not in self.Major]
-            if len(moves) == 0:
-                moves = [[p] for p in deck]
-        
-        return moves 
-    def bigger_pair(self, pair1, pair2):
-        if pair1==None:
-            return pair2
-        if pair2==None:
-            return pair1
-        if not self.is_pair(pair1):
-            return pair2
-        if not self.is_pair(pair2):
-            return pair1
-        major1 = self.isMajor(pair1[0])
-        major2 = self.isMajor(pair2[0])
-        if major1 and not major2:
-            return pair1
-        if not major1 and major2:
-            return pair2
-        if major1 and major2:
-            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
-                return pair1
-            else:
-                return pair2
+        #大牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            options.append(self.play_other_suit(suit))
             
-        if not major1 and not major2:
-            if pair1[0][0] != pair2[0][0]:
-                return pair1
-            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
-                return pair1
-            else:
-                return pair2
+        #队友没有的花色
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            oth_v = self.other_value(suit)
+            if oth_v!= None:
+                options.append([oth_v])
+            oth_s = self.play_small(suit)
+            if oth_s != None:
+                options.append([oth_s])
+                
+        #副对子
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            options.append(self.play_large_pair(suit))
+
+        #出主
+        options.append(self.play_large_major_pair())
+        small_major = self.play_small_major()
+        if small_major!= None:
+            options.append([small_major])
+        if self.major != 'n':
+            card_to_beat = self.get_card_to_beat()
+            if card_to_beat!= None:
+                options.append([self.beat_card(card_to_beat)])
         
-    def bigger_card(self, card1, card2):
-        if card1==None:
-            return card2
-        if card2==None:
-            return card1
-        major1 = self.isMajor(card1)
-        major2 = self.isMajor(card2)
-        if major1 and not major2:
-            return card1
-        if not major1 and major2:
-            return card2
-        if major1 and major2:
-            if self.card_level(card1) >= self.card_level(card2):
-                return card1
-            else:
-                return card2
-        if not major1 and not major2:
-            if card1[0] != card2[0]:
-                return card1
-            if self.card_level(card1) >= self.card_level(card2):
-                return card1
-            else:
-                return card2
-        
-    def smaller_card(self, card1, card2):
-        return self.bigger_card(card2,card1) 
+        #副单牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            options.append(self.play_single(suit))
+
+        options_1 = [option for option in options if option != None]
+
+        return options_1
+    
+    # 生成出法(启发式)
+
     def gen_single_new(self, history):
         first_card=self.Num2Poker(history[0][0])
         suit=self.get_suit(first_card)
@@ -452,7 +401,7 @@ class move_generator():
             if result==None:
                 result=self.play_small()
             return [result]
-    
+        
     def gen_pair_new(self, history):
         first_card=self.Num2Poker(history[0][0])
         first_cards=self.Num2Poker(history[0])
@@ -711,7 +660,308 @@ class move_generator():
                         move_uni = result
             result_all.extend(move_uni)
         return result_all
+    
+    def gen_one_action(self):
+        result=None
+        #查看是否有拖拉机：
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_tractor(suit)
+            if result!=None:
+                return result
+        result=self.play_major_tractor()
+        if result!=None:
+            return result
 
+        #如果没有拖拉机，从短往长出大牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_other_suit(suit)
+            if result!=None:
+                return result
+            
+        #出队友没有的花色
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if self.trump_in(suit): 
+                result= self.other_value(suit)
+                if result == None:
+                    result = self.play_small(suit)
+            if result!=None:
+                return [result]
+            
+        # 如果某门副牌只有一对或者只有对子，尝试出对子
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==1 and len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
+                result=self.play_large_pair(suit)
+                if result!=None:
+                    return result
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==len(self.organized_hold_cards["other_suits_cards"][suit]["singles"]):
+                result=self.play_large_pair(suit)
+                if result!=None:
+                    return result
+        #如果某门副牌只有一张牌，尝试出单牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
+                result=self.play_single(suit)
+                if result!=None:
+                    return result
+        #尝试出副对子
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_large_pair(suit)
+            if result!=None:
+                return result
+
+        #如果没有副对，尝试出主
+        result=self.play_major()
+        if self.major != 'n':
+            major_level = self.major+self.level
+            if result!=None and len(result) == 2 and (len(self.organized_hold_cards["main_suit_cards"]["pairs"]) == 1) :# 留一个主对
+                result = [self.play_small_major()]
+            if result!=None and len(result) == 1 and (self.bigger_card(result[0],major_level) == result[0] or len(self.organized_hold_cards["main_suit_cards"]["singles"]) == 1):# 最小的主太大了或主太短了
+                result = None
+        if result!=None:
+            return result
+
+        
+        #如果没有主，尝试出副单牌
+        for suit in self.organized_hold_cards["other_suits_cards"]:
+            result=self.play_single(suit)
+            if result!=None:
+                return result
+            
+        #如果只有主，正常出
+        result=self.play_major()
+        if result!=None:
+            return result
+
+        #不应该到这里
+        assert False
+        print("Error: No action generated") 
+        return None
+
+    # 理牌
+
+    def organize_cards(self,cards):
+        # 1. 将 hold 中的每张牌转化为扑克格式
+        converted_cards = [self.Num2Poker(card) for card in cards]
+
+        # 2. 按照主花色和副花色分类
+        main_suit_cards = [card for card in converted_cards if self.isMajor(card)]
+        other_suits_cards = {suit: [] for suit in self.suit_set if suit != self.major}
+
+        for card in converted_cards:   
+            if not self.isMajor(card):
+                other_suits_cards[card[0]].append(card)
+
+        # 3. 对每一类牌进行排序（按点数排序）
+        main_suit_cards.sort(key=lambda x: self.card_level(x) )
+        for suit in other_suits_cards:
+            other_suits_cards[suit].sort(key=lambda x: self.card_level(x))
+
+        major_single, major_pairs=self.divide_suit(main_suit_cards)
+
+        major_tractors=self.divide_pairs(major_pairs,1)
+
+        #移除长度为1的拖拉机
+        major_tractors=[tractor for tractor in major_tractors if int(tractor[-1])>1]
+
+        #把拖拉机按照长度排序
+        major_tractors.sort(key=lambda x: int(x[-1]))
+
+        main_suit_cards = {
+            "singles": major_single,
+            "pairs": major_pairs,
+            "tractors": major_tractors
+        }
+
+        #按照长度排序
+        other_suits_cards = sorted(other_suits_cards.items(), key=lambda item: len(item[1]))
+        other_suits_cards = dict(other_suits_cards)
+
+        for suit in other_suits_cards:
+            singles, pairs=self.divide_suit(other_suits_cards[suit])
+            tractors=self.divide_pairs(pairs,1)
+            tractors=[tractor for tractor in tractors if int(tractor[-1])>1]
+            tractors.sort(key=lambda x: int(x[-1]))
+            other_suits_cards[suit] = {
+                "singles": singles,
+                "pairs": pairs,
+                "tractors": tractors
+            }
+        return {
+            "main_suit_cards": main_suit_cards,
+            "other_suits_cards": other_suits_cards
+        }
+    
+    def Num2Poker(self,num): # num: int-[0,107]
+        if type(num) is list:
+            return myutils.Num2Poker_seq(num) 
+        return myutils.Num2Poker(num) 
+    
+    def Poker2Num(self,poker):
+        return myutils.Poker2Num(poker,self.hold)
+    
+    def Poker2Num_seq(self,pokers):
+        return myutils.Poker2Num_seq(pokers,self.hold)
+    
+    def get_suit(self,card):
+        return myutils.get_suit(card,self.major,self.level)
+    
+    def bigger_card(self, card1, card2):
+        if card1==None:
+            return card2
+        if card2==None:
+            return card1
+        major1 = self.isMajor(card1)
+        major2 = self.isMajor(card2)
+        if major1 and not major2:
+            return card1
+        if not major1 and major2:
+            return card2
+        if major1 and major2:
+            if self.card_level(card1) >= self.card_level(card2):
+                return card1
+            else:
+                return card2
+        if not major1 and not major2:
+            if card1[0] != card2[0]:
+                return card1
+            if self.card_level(card1) >= self.card_level(card2):
+                return card1
+            else:
+                return card2
+            
+    def bigger_pair(self, pair1, pair2):
+        if pair1==None:
+            return pair2
+        if pair2==None:
+            return pair1
+        if not self.is_pair(pair1):
+            return pair2
+        if not self.is_pair(pair2):
+            return pair1
+        major1 = self.isMajor(pair1[0])
+        major2 = self.isMajor(pair2[0])
+        if major1 and not major2:
+            return pair1
+        if not major1 and major2:
+            return pair2
+        if major1 and major2:
+            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
+                return pair1
+            else:
+                return pair2
+            
+        if not major1 and not major2:
+            if pair1[0][0] != pair2[0][0]:
+                return pair1
+            if self.card_level(pair1[0]) >= self.card_level(pair2[0]):
+                return pair1
+            else:
+                return pair2
+
+    def divide_suit(self, tgt):
+        #把某种花色分为单牌和对子
+        return myutils.divide_suit(tgt)
+    
+    def divide_pairs(self, tgt,first_tractor_len):
+        #从对子中提取拖拉机：
+        if (len(tgt)==0):
+            return []
+        elif (len(tgt)==1):
+            return [tgt[0]+str(first_tractor_len)]
+        elif (self.card_level(tgt[0]) == 113 or self.card_level(tgt[0]) == 114):
+            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
+        elif (self.card_level(tgt[0])+1==self.card_level(tgt[1])):
+            if tgt[1][1] != self.level:
+                return self.divide_pairs(tgt[1:],first_tractor_len+1)
+            else:
+                return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
+        else:
+            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
+    
+    def remove_one_card(self,card):
+        card_num= self.Poker2Num(card)
+        assert card_num in self.hold
+        self.hold.remove(card_num)
+        self.organized_hold_cards = self.organize_cards(self.hold)
+    
+    def remove_one_pair(self,card):
+        card_num_small= self.Poker2Num(card)%54
+        card_num_big = card_num_small + 54
+        assert card_num_small in self.hold and card_num_big in self.hold
+        self.hold.remove(card_num_small)
+        self.hold.remove(card_num_big)
+        self.organized_hold_cards = self.organize_cards(self.hold)
+    
+
+
+    # 打牌
+    # 打单张
+
+    def play_small(self,suit=None):
+        if suit==None:
+            #出最短的非空副花色的最小的牌
+            for suit in self.organized_hold_cards["other_suits_cards"]:
+                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
+                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                        if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"] and not self.is_value(card):
+                            return card
+            for suit in self.organized_hold_cards["other_suits_cards"]:
+                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
+                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                        if not self.is_value(card):
+                            return card
+            for suit in self.organized_hold_cards["other_suits_cards"]:
+                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
+                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                        return card
+        else:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
+                for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                    if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]and not self.is_value(card):
+                        return card
+                    # for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                    #     if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+                    #        return card
+                for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+                    if not self.is_value(card): # 拆对
+                        return card
+                return self.organized_hold_cards["other_suits_cards"][suit]["singles"][0]
+        return None
+    
+    def play_large(self,suit):
+        if self.have_single(suit):
+            largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
+            return largest_single
+        return None   
+
+    def play_single(self,suit):
+        if self.have_single(suit):
+            largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
+            return [largest_single]
+        return None   
+
+    def play_major(self):   
+        if self.have_major():
+            #尝试出大对子
+            result=self.play_large_major_pair()
+            if result!=None:
+                return result
+            #尝试出小单张
+            return [self.play_small_major()]
+        return None
+            
+    def play_small_major(self):
+        if self.have_major():
+            #尝试出小单张
+            for card in self.organized_hold_cards["main_suit_cards"]["singles"]:
+                if not card in self.organized_hold_cards["main_suit_cards"]["pairs"] and not self.is_value(card):
+                    return card
+            for card in self.organized_hold_cards["main_suit_cards"]["singles"]:
+                if not self.is_value(card):
+                    return card
+            return self.organized_hold_cards["main_suit_cards"]["singles"][0]
+        return None
+    
     def beat_card(self,card,if_equal=False):
         bias = 0
         if if_equal:
@@ -739,7 +989,297 @@ class move_generator():
                 if self.card_level(my_card)+bias>self.card_level(card):
                     return my_card
         return None
-                
+    
+    #打对
+    
+    def play_pair(self,suit): #弃用
+        if self.have_pair(suit):
+            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
+            return [largest_pair,largest_pair]
+        return None
+    
+    def play_value_pair(self,suit):# 出分最多的对子，假设已检验过have_pair
+        assert self.have_pair(suit) 
+        if '0' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+            card = suit+'0'
+            return [card,card]
+        if 'K' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+            card = suit+'K'
+            return [card,card]
+        if '5' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+            card = suit+'5'
+            return [card,card]
+        card = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][0]
+        return [card,card]
+    
+    def play_small_pair(self,suit):# 出最小的对子，尽量不打分
+        if self.have_pair(suit):
+            for card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+                if not self.is_value(card):
+                    return [card,card]
+            card = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][0]
+            return [card,card]
+        return None
+    
+    def play_large_pair(self,suit):# 出最大的对子
+        if self.have_pair(suit):
+            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
+            return [largest_pair,largest_pair]
+        return None
+    
+    def play_major_pair(self):# 弃用
+        result=self.play_major_value_pair()
+        if result==None:
+            result=self.play_small_major_pair()
+        return result
+    
+    def play_major_value_pair(self):
+        assert self.have_major_pair()
+        if '0' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+            card = self.major+'0'
+            return [card,card]
+        if 'K' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+            card = self.major+'K'
+            return [card,card]
+        if '5' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+            card = self.major+'5'
+            return [card,card]
+        card = self.organized_hold_cards["main_suit_cards"]["pairs"][0]
+        return [card,card]
+    
+    def play_small_major_pair(self):
+        if self.have_major_pair():
+            for card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+                if not self.is_value(card):
+                    return [card,card]
+            card = self.organized_hold_cards["main_suit_cards"]["pairs"][0]
+            return [card,card]
+        return None
+    
+    def play_large_major_pair(self):
+        if self.have_major_pair():
+            largest_pair = self.organized_hold_cards["main_suit_cards"]["pairs"][-1]
+            return [largest_pair,largest_pair]
+        return None
+
+    def beat_pair(self,cards):
+        if self.isMajor(cards[0]):
+            #找到最小的比card大的主对子
+            assert self.have_major_pair()
+            for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+                if self.card_level(my_card)>self.card_level(cards[0]):
+                    return [my_card,my_card]
+            return self.play_small_major_pair()
+        else:
+            #找到最大的非主对子,若不比cards大，则打最小的非主对子,但尽量不打分
+            assert self.have_pair(cards[0][0]) or self.have_major_pair()
+            if self.have_pair(cards[0][0]):
+                suit = self.get_suit(cards[0])
+                result = self.play_large_pair(suit) # 假设已检验过have_pair
+                if self.bigger_pair(cards,result) == result:
+                    return result
+                return self.play_small_pair(suit)
+            else:
+                for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+                    if self.is_value(my_card) and self.card_level(my_card)>self.card_level(cards[0]):
+                        return [my_card,my_card]
+                for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
+                    if self.card_level(my_card)>self.card_level(cards[0]):
+                        return [my_card,my_card]
+                return self.play_small_major_pair()
+        return None
+
+    
+    #打拖拉机
+
+    def play_major_tractor(self):
+        if self.have_major_tractor():
+            return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
+        return None
+    
+    def play_tractor(self,suit):
+        if self.have_tractor(suit):
+            return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
+        return None
+    
+    #打很多张
+
+    def play_other_suit(self,suit):
+        if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:
+            return None
+        largest_single = None
+        for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
+            if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
+                largest_single = card
+        if self.have_pair(suit):
+            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
+            if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
+                return [largest_pair,largest_pair,largest_single]
+            if self.is_largest_pair(largest_pair):
+                return [largest_pair,largest_pair]
+        if largest_single!= None and self.is_largest_single(largest_single):
+            return [largest_single]
+        return None
+
+    def play_small_major_tachi(self,num,then_value=False):
+        if num==0:
+            return []
+        result=[]
+        while len(result)<num:
+            card=self.play_small_major()
+            if card == None:
+                break
+            result.append(card)
+            self.remove_one_card(card)
+        if then_value:
+            result.extend(self.play_value_tachi(num-len(result)))
+        else:
+            result.extend(self.play_small_tachi(num-len(result)))
+        return result
+    
+    def play_small_tachi(self,num,suit=None):
+        if num==0:
+            return []
+        result=[]
+        if suit==None:
+            while(len(result)<num):
+                card=self.play_small()
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_small_major_tachi(num-len(result)))
+        else:
+            while(len(result)<num):
+                card=self.play_small(suit)
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_small_tachi(num-len(result)))
+        return result
+
+    def play_value_tachi(self,num,suit=None):
+        if num==0:
+            return []
+        result=[]
+        if suit==None:
+            while len(result)<num:
+                card=self.other_value()
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            while len(result)<num:
+                card=self.major_value()
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_small_tachi(num-len(result)))
+        else:
+            while len(result)<num:
+                card=self.other_value(suit)
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            while len(result)<num:
+                card=self.play_small(suit) 
+                if card == None:
+                    break
+                result.append(card)
+                self.remove_one_card(card)
+            result.extend(self.play_value_tachi(num-len(result)))
+        return result
+    
+    def play_major_value_tachi(self,num):
+        if num==0:
+            return []
+        result=[]
+        while len(result)<num:
+            card=self.major_value()
+            if card == None:
+                break
+            result.append(card)
+            self.remove_one_card(card)
+        result.extend(self.play_small_major_tachi(num-len(result),then_value=True))
+        return result
+    
+    def play_small_pair_tachi(self,num,suit,then_value=False):
+        if num==0:
+            return []
+        result=[]
+        while(len(result)<num):
+            pair=self.play_small_pair(suit)
+            if pair == None:
+                break
+            card = pair[0]
+            result.append(card)
+            result.append(card)
+            self.remove_one_pair(card)
+        if then_value:
+            result.extend(self.play_value_tachi(num-len(result),suit))
+        else:
+            result.extend(self.play_small_tachi(num-len(result),suit))
+        return result
+    
+    def play_value_pair_tachi(self,num,suit):
+        if num==0:
+            return []
+        result=[]
+        if self.have_pair(suit):
+            while(len(result)<num and self.have_pair(suit)):
+                pair=self.play_value_pair(suit)
+                if pair == None:
+                    break
+                card = pair[0]
+                result.append(card)
+                result.append(card)
+                self.remove_one_pair(card)
+            result.extend(self.play_small_pair_tachi(num-len(result),suit,then_value=True))
+            return result
+        else:
+            return self.play_value_tachi(num,suit)
+
+    def play_small_major_pair_tachi(self,num,then_value=False): 
+        if num==0:
+            return []
+        result=[]
+        while(len(result)<num):
+            pair=self.play_small_major_pair()
+            if pair == None:
+                break
+            card = pair[0]
+            result.append(card)
+            result.append(card)
+            self.remove_one_pair(card)
+        if then_value:
+            result.extend(self.play_major_value_tachi(num-len(result)))
+        else:
+            result.extend(self.play_small_major_tachi(num-len(result)))
+        return result
+    
+    def play_major_value_pair_tachi(self,num):
+        if num==0:
+            return []
+        result=[]
+        if self.have_major_pair():
+            while(len(result)<num and self.have_major_pair()):
+                pair=self.play_major_value_pair()
+                if pair == None:
+                    break
+                card = pair[0]
+                result.append(card)
+                result.append(card)
+                self.remove_one_pair(card)
+            result.extend(self.play_small_major_pair_tachi(num-len(result),then_value=True))
+            return result
+        else:
+            return self.play_major_value_tachi(num)
+        
+    # 找牌
+        
     def major_value(self):
         #找到一张主的分牌
         for my_card in self.organized_hold_cards["main_suit_cards"]["singles"]:
@@ -769,28 +1309,107 @@ class move_generator():
             if self.is_value(my_card) and  not my_card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
                 return my_card
         return None
-    def trump_in(self,suit):
-        return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)==0 and self.empty_suits[self.teammate_id].count(self.major) == 0
     
+    def get_shortest_other_suit(self,suits):
+        #获得最短的非空副花色
+        min_len = 100
+        min_suit = ''
+        for suit in suits:
+            if len(self.organized_hold_cards["other_suits_cards"][suit]) < min_len :
+                min_len = len(self.organized_hold_cards["other_suits_cards"][suit])
+                min_suit = suit
+        return min_suit, min_len
 
-    #外面都没了
-    def all_empty(self,suit):
-        return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.next_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)>0
+    def largest_single_left(self,suit):
+        if len(self.organized_left_cards["other_suits_cards"][suit]["singles"])==0:
+            return None
+        else:
+            return self.organized_left_cards["other_suits_cards"][suit]["singles"][-1]
+        
+    def tractor_to_action(self,tractor):
+        action=[]
+        len=int(tractor[-1])
+        if tractor[1] == self.level or tractor[1] == 'o':
+            return None
+        first_card=self.point_order.index(tractor[1])-len+1 
+        for i in range(len):
+            action.append(tractor[0]+self.point_order[first_card+i])
+            action.append(tractor[0]+self.point_order[first_card+i])
+        return action
+        # return ['d2','d2','c2','c2']
     
-    #对面还有
-    def enemy_not_empty(self,suit):
-        return self.empty_suits[self.next_id].count(suit)==0 and self.empty_suits[self.prev_id].count(suit)==0
-    
+    def get_card_to_beat(self):
+        card_to_beat=None
+        for card in self.organized_left_cards["main_suit_cards"]["singles"]:
+            if self.is_value(card):#至少盖过最大分
+                card_to_beat=card
+        return card_to_beat
+    # 判断牌型
+    def card_level(self, card):
+        return myutils.card_level(card,self.major,self.level)
 
-    #对面没了，队友还有
-    def off_trump(self,suit):
-        return self.empty_suits[self.teammate_id].count(suit)==0 and (self.empty_suits[self.next_id].count(suit)>0 or self.empty_suits[self.prev_id].count(suit)>0)
+    def isMajor(self, card):
+        return myutils.isMajor(card,self.major,self.level)
+        
+    def is_major_pair(self,cards):
+        return self.isMajor(cards[0]) and self.is_pair(cards)
     
-    #队友能毙
-    def canbeat(self,suit,_id):
-        return self.empty_suits[_id].count(suit)>0 and self.empty_suits[_id].count(self.major) == 0
+    def is_pair(self,cards):
+        return len(cards)==2 and cards[0] == cards[1]
     
-    #队友有把握在这一轮中是最大的
+    def is_value(self, card):
+        if card[1] in self.value_cards:
+            return True
+        else:   
+            return False
+        
+    def is_big_value(self, card):
+        if card[1] == '0' or card[1] == 'K':
+            return True
+        return False
+    
+    def is_largest_single(self, card):
+        if card == None:
+            return False
+        if self.isMajor(card):
+            if len(self.organized_left_cards["main_suit_cards"]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["main_suit_cards"]["singles"][-1]):
+                return True
+        else:
+            if len(self.organized_left_cards["other_suits_cards"][card[0]]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["other_suits_cards"][card[0]]["singles"][-1]):
+                return True
+        return False
+
+    def is_largest_pair(self, card):
+        if self.isMajor(card):
+            if len(self.organized_left_cards["main_suit_cards"]["pairs"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["main_suit_cards"]["pairs"][-1]):
+                return True
+        else:
+            if len(self.organized_left_cards["other_suits_cards"][card[0]]["pairs"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["other_suits_cards"][card[0]]["pairs"][-1]):
+                return True
+        return False
+
+    def have_major(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
+
+    def have_major_tractor(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0
+
+    def have_tractor(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["tractors"])>0
+
+    def have_major_pair(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["pairs"])>0
+    
+    def have_pair(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])>0
+    
+    def have_major_single(self):
+        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
+
+    def have_single(self,suit):
+        return len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0
+    
+   #队友有把握在这一轮中是最大的
     def teammate_trump(self,history,suit):
         first_card=self.Num2Poker(history[0][0])
         if (len(history)==1): #上家出牌
@@ -821,6 +1440,47 @@ class move_generator():
             for card in cards:
                 if self.is_value(self.Num2Poker(card)):
                     return True
+                
+    def trump_in(self,suit):
+        return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)==0 and self.empty_suits[self.teammate_id].count(self.major) == 0
+    
+
+    #外面都没了
+    def all_empty(self,suit):
+        return self.empty_suits[self.teammate_id].count(suit)>0 and self.empty_suits[self.next_id].count(suit)>0 and self.empty_suits[self.prev_id].count(suit)>0
+    
+    #对面还有
+    def enemy_not_empty(self,suit):
+        return self.empty_suits[self.next_id].count(suit)==0 and self.empty_suits[self.prev_id].count(suit)==0
+    
+
+    #对面没了，队友还有
+    def off_trump(self,suit):
+        return self.empty_suits[self.teammate_id].count(suit)==0 and (self.empty_suits[self.next_id].count(suit)>0 or self.empty_suits[self.prev_id].count(suit)>0)
+    
+    #队友能毙
+    def canbeat(self,suit,_id):
+        return self.empty_suits[_id].count(suit)>0 and self.empty_suits[_id].count(self.major) == 0
+    
+        
+    # 原有的gen系列
+
+    def gen_single(self, deck, tgt):
+        '''
+        deck: player's deck
+        tgt: target cardset(list of cardnames)
+        '''
+        moves = []
+        if tgt[0] in self.Major:
+            moves = [[p] for p in deck if p in self.Major]
+            if len(moves) == 0: # No Major in deck
+                moves = [[p] for p in deck]
+        else:
+            moves = [[p] for p in deck if p[0] == tgt[0][0] and p not in self.Major]
+            if len(moves) == 0:
+                moves = [[p] for p in deck]
+        
+        return moves 
     
     def gen_pair(self, deck, tgt):
         '''
@@ -974,531 +1634,7 @@ class move_generator():
             self.reg_generator(new_deck, new_move, new_pok, moves)
             
         return
-    def get_shortest_other_suit(self,suits):
-        #获得最短的非空副花色
-        min_len = 100
-        min_suit = ''
-        for suit in suits:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]) < min_len :
-                min_len = len(self.organized_hold_cards["other_suits_cards"][suit])
-                min_suit = suit
-        return min_suit, min_len
-    def divide_suit(self, tgt):
-        #把某种花色分为单牌和对子
-        return myutils.divide_suit(tgt)
-
     
-    def divide_pairs(self, tgt,first_tractor_len):
-        #从对子中提取拖拉机：
-        if (len(tgt)==0):
-            return []
-        elif (len(tgt)==1):
-            return [tgt[0]+str(first_tractor_len)]
-        elif (self.card_level(tgt[0]) == 113 or self.card_level(tgt[0]) == 114):
-            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
-        elif (self.card_level(tgt[0])+1==self.card_level(tgt[1])):
-            if tgt[1][1] != self.level:
-                return self.divide_pairs(tgt[1:],first_tractor_len+1)
-            else:
-                return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
-        else:
-            return [tgt[0]+str(first_tractor_len)]+self.divide_pairs(tgt[1:],1)
-
-    def largest_single_left(self,suit):
-        if len(self.organized_left_cards["other_suits_cards"][suit]["singles"])==0:
-            return None
-        else:
-            return self.organized_left_cards["other_suits_cards"][suit]["singles"][-1]
-    def is_largest_single(self, card):
-        if card == None:
-            return False
-        if self.isMajor(card):
-            if len(self.organized_left_cards["main_suit_cards"]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["main_suit_cards"]["singles"][-1]):
-                return True
-        else:
-            if len(self.organized_left_cards["other_suits_cards"][card[0]]["singles"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["other_suits_cards"][card[0]]["singles"][-1]):
-                return True
-        return False
-
-    def is_largest_pair(self, card):
-        if self.isMajor(card):
-            if len(self.organized_left_cards["main_suit_cards"]["pairs"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["main_suit_cards"]["pairs"][-1]):
-                return True
-        else:
-            if len(self.organized_left_cards["other_suits_cards"][card[0]]["pairs"])==0 or self.card_level(card) >= self.card_level(self.organized_left_cards["other_suits_cards"][card[0]]["pairs"][-1]):
-                return True
-        return False
-    def is_value(self, card):
-        if card[1] in self.value_cards:
-            return True
-        else:   
-            return False
-        
-    def is_big_value(self, card):
-        if card[1] == '0' or card[1] == 'K':
-            return True
-        return False
-    def tractor_to_action(self,tractor):
-        action=[]
-        len=int(tractor[-1])
-        if tractor[1] == self.level or tractor[1] == 'o':
-            return None
-        first_card=self.point_order.index(tractor[1])-len+1 
-        for i in range(len):
-            action.append(tractor[0]+self.point_order[first_card+i])
-            action.append(tractor[0]+self.point_order[first_card+i])
-        return action
-        # return ['d2','d2','c2','c2']
-    def have_major(self):
-        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
-    def play_small(self,suit=None):
-        if suit==None:
-            #出最短的非空副花色的最小的牌
-            for suit in self.organized_hold_cards["other_suits_cards"]:
-                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
-                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                        if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"] and not self.is_value(card):
-                            return card
-            for suit in self.organized_hold_cards["other_suits_cards"]:
-                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
-                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                        if not self.is_value(card):
-                            return card
-            for suit in self.organized_hold_cards["other_suits_cards"]:
-                if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
-                    for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                        return card
-        else:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0:
-                for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                    if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]and not self.is_value(card):
-                        return card
-                    # for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                    #     if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-                    #        return card
-                for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-                    if not self.is_value(card): # 拆对
-                        return card
-                return self.organized_hold_cards["other_suits_cards"][suit]["singles"][0]
-        return None
-    
-    def remove_one_card(self,card):
-        card_num= self.Poker2Num(card)
-        assert card_num in self.hold
-        self.hold.remove(card_num)
-        self.organized_hold_cards = self.organize_cards(self.hold)
-    
-    def remove_one_pair(self,card):
-        card_num_small= self.Poker2Num(card)%54
-        card_num_big = card_num_small + 54
-        assert card_num_small in self.hold and card_num_big in self.hold
-        self.hold.remove(card_num_small)
-        self.hold.remove(card_num_big)
-        self.organized_hold_cards = self.organize_cards(self.hold)
-    
-    def is_major_pair(self,cards):
-        return self.isMajor(cards[0]) and self.is_pair(cards)
-    def is_pair(self,cards):
-        return len(cards)==2 and cards[0] == cards[1]
-    def beat_pair(self,cards):
-        if self.isMajor(cards[0]):
-            #找到最小的比card大的主对子
-            assert self.have_major_pair()
-            for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-                if self.card_level(my_card)>self.card_level(cards[0]):
-                    return [my_card,my_card]
-            return self.play_small_major_pair()
-        else:
-            #找到最大的非主对子,若不比cards大，则打最小的非主对子,但尽量不打分
-            assert self.have_pair(cards[0][0]) or self.have_major_pair()
-            if self.have_pair(cards[0][0]):
-                suit = self.get_suit(cards[0])
-                result = self.play_large_pair(suit) # 假设已检验过have_pair
-                if self.bigger_pair(cards,result) == result:
-                    return result
-                return self.play_small_pair(suit)
-            else:
-                for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-                    if self.is_value(my_card) and self.card_level(my_card)>self.card_level(cards[0]):
-                        return [my_card,my_card]
-                for my_card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-                    if self.card_level(my_card)>self.card_level(cards[0]):
-                        return [my_card,my_card]
-                return self.play_small_major_pair()
-        return None
-    def play_small_major(self):
-        if self.have_major():
-            #尝试出小单张
-            for card in self.organized_hold_cards["main_suit_cards"]["singles"]:
-                if not card in self.organized_hold_cards["main_suit_cards"]["pairs"] and not self.is_value(card):
-                    return card
-            for card in self.organized_hold_cards["main_suit_cards"]["singles"]:
-                if not self.is_value(card):
-                    return card
-            return self.organized_hold_cards["main_suit_cards"]["singles"][0]
-        return None
-    
-    def play_small_major_tachi(self,num,then_value=False):
-        if num==0:
-            return []
-        result=[]
-        while len(result)<num:
-            card=self.play_small_major()
-            if card == None:
-                break
-            result.append(card)
-            self.remove_one_card(card)
-        if then_value:
-            result.extend(self.play_value_tachi(num-len(result)))
-        else:
-            result.extend(self.play_small_tachi(num-len(result)))
-        return result
-    def play_small_tachi(self,num,suit=None):
-        if num==0:
-            return []
-        result=[]
-        if suit==None:
-            while(len(result)<num):
-                card=self.play_small()
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            result.extend(self.play_small_major_tachi(num-len(result)))
-        else:
-            while(len(result)<num):
-                card=self.play_small(suit)
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            result.extend(self.play_small_tachi(num-len(result)))
-        return result
-
-    def play_value_tachi(self,num,suit=None):
-        if num==0:
-            return []
-        result=[]
-        if suit==None:
-            while len(result)<num:
-                card=self.other_value()
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            while len(result)<num:
-                card=self.major_value()
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            result.extend(self.play_small_tachi(num-len(result)))
-        else:
-            while len(result)<num:
-                card=self.other_value(suit)
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            while len(result)<num:
-                card=self.play_small(suit) 
-                if card == None:
-                    break
-                result.append(card)
-                self.remove_one_card(card)
-            result.extend(self.play_value_tachi(num-len(result)))
-        return result
-    
-    def play_major_value_tachi(self,num):
-        if num==0:
-            return []
-        result=[]
-        while len(result)<num:
-            card=self.major_value()
-            if card == None:
-                break
-            result.append(card)
-            self.remove_one_card(card)
-        result.extend(self.play_small_major_tachi(num-len(result),then_value=True))
-        return result
-    
-    def play_small_pair_tachi(self,num,suit,then_value=False):
-        if num==0:
-            return []
-        result=[]
-        while(len(result)<num):
-            pair=self.play_small_pair(suit)
-            if pair == None:
-                break
-            card = pair[0]
-            result.append(card)
-            result.append(card)
-            self.remove_one_pair(card)
-        if then_value:
-            result.extend(self.play_value_tachi(num-len(result),suit))
-        else:
-            result.extend(self.play_small_tachi(num-len(result),suit))
-        return result
-    
-    def play_value_pair_tachi(self,num,suit):
-        if num==0:
-            return []
-        result=[]
-        if self.have_pair(suit):
-            while(len(result)<num and self.have_pair(suit)):
-                pair=self.play_value_pair(suit)
-                if pair == None:
-                    break
-                card = pair[0]
-                result.append(card)
-                result.append(card)
-                self.remove_one_pair(card)
-            result.extend(self.play_small_pair_tachi(num-len(result),suit,then_value=True))
-            return result
-        else:
-            return self.play_value_tachi(num,suit)
-
-    def play_small_major_pair_tachi(self,num,then_value=False): 
-        if num==0:
-            return []
-        result=[]
-        while(len(result)<num):
-            pair=self.play_small_major_pair()
-            if pair == None:
-                break
-            card = pair[0]
-            result.append(card)
-            result.append(card)
-            self.remove_one_pair(card)
-        if then_value:
-            result.extend(self.play_major_value_tachi(num-len(result)))
-        else:
-            result.extend(self.play_small_major_tachi(num-len(result)))
-        return result
-    
-    def play_major_value_pair_tachi(self,num):
-        if num==0:
-            return []
-        result=[]
-        if self.have_major_pair():
-            while(len(result)<num and self.have_major_pair()):
-                pair=self.play_major_value_pair()
-                if pair == None:
-                    break
-                card = pair[0]
-                result.append(card)
-                result.append(card)
-                self.remove_one_pair(card)
-            result.extend(self.play_small_major_pair_tachi(num-len(result),then_value=True))
-            return result
-        else:
-            return self.play_major_value_tachi(num)
-
-
-    def play_major(self):   
-        if self.have_major():
-            #尝试出大对子
-            result=self.play_large_major_pair()
-            if result!=None:
-                return result
-            #尝试出小单张
-            return [self.play_small_major()]
-        return None
-        
-
-    def play_other_suit(self,suit):
-        if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==0:
-            return None
-        largest_single = None
-        for card in self.organized_hold_cards["other_suits_cards"][suit]["singles"]:
-            if not card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-                largest_single = card
-        if self.have_pair(suit):
-            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
-            if self.is_largest_pair(largest_pair) and self.is_largest_single(largest_single):
-                return [largest_pair,largest_pair,largest_single]
-            if self.is_largest_pair(largest_pair):
-                return [largest_pair,largest_pair]
-        if largest_single!= None and self.is_largest_single(largest_single):
-            return [largest_single]
-        return None
-    def play_major_tractor(self):
-        if self.have_major_tractor():
-            return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
-        return None
-    def play_tractor(self,suit):
-        if self.have_tractor(suit):
-            return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
-        return None
-    def play_pair(self,suit): #弃用
-        if self.have_pair(suit):
-            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
-            return [largest_pair,largest_pair]
-        return None
-    
-    def play_value_pair(self,suit):# 出分最多的对子，假设已检验过have_pair
-        assert self.have_pair(suit) 
-        if '0' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-            card = suit+'0'
-            return [card,card]
-        if 'K' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-            card = suit+'K'
-            return [card,card]
-        if '5' in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-            card = suit+'5'
-            return [card,card]
-        card = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][0]
-        return [card,card]
-    
-    def play_small_pair(self,suit):# 出最小的对子，尽量不打分
-        if self.have_pair(suit):
-            for card in self.organized_hold_cards["other_suits_cards"][suit]["pairs"]:
-                if not self.is_value(card):
-                    return [card,card]
-            card = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][0]
-            return [card,card]
-        return None
-    
-    def play_large_pair(self,suit):# 出最大的对子
-        if self.have_pair(suit):
-            largest_pair = self.organized_hold_cards["other_suits_cards"][suit]["pairs"][-1]
-            return [largest_pair,largest_pair]
-        return None
-    
-    def play_major_pair(self):# 弃用
-        result=self.play_major_value_pair()
-        if result==None:
-            result=self.play_small_major_pair()
-        return result
-    
-    def play_major_value_pair(self):
-        assert self.have_major_pair()
-        if '0' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-            card = self.major+'0'
-            return [card,card]
-        if 'K' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-            card = self.major+'K'
-            return [card,card]
-        if '5' in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-            card = self.major+'5'
-            return [card,card]
-        card = self.organized_hold_cards["main_suit_cards"]["pairs"][0]
-        return [card,card]
-    
-    def play_small_major_pair(self):
-        if self.have_major_pair():
-            for card in self.organized_hold_cards["main_suit_cards"]["pairs"]:
-                if not self.is_value(card):
-                    return [card,card]
-            card = self.organized_hold_cards["main_suit_cards"]["pairs"][0]
-            return [card,card]
-        return None
-    
-    def play_large_major_pair(self):
-        if self.have_major_pair():
-            largest_pair = self.organized_hold_cards["main_suit_cards"]["pairs"][-1]
-            return [largest_pair,largest_pair]
-        return None
-
-    def play_single(self,suit):
-        if self.have_single(suit):
-            largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
-            return [largest_single]
-        return None
-    
-    def have_major_tractor(self):
-        return len(self.organized_hold_cards["main_suit_cards"]["tractors"])>0
-
-    def have_tractor(self,suit):
-        return len(self.organized_hold_cards["other_suits_cards"][suit]["tractors"])>0
-
-    def have_major_pair(self):
-        return len(self.organized_hold_cards["main_suit_cards"]["pairs"])>0
-    
-    def have_pair(self,suit):
-        return len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])>0
-    
-    def have_major_single(self):
-        return len(self.organized_hold_cards["main_suit_cards"]["singles"])>0
-
-    def have_single(self,suit):
-        return len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])>0
-    def gen_one_action(self):
-        result=None
-        #查看是否有拖拉机：
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            result=self.play_tractor(suit)
-            if result!=None:
-                return result
-        result=self.play_major_tractor()
-        if result!=None:
-            return result
-
-        #如果没有拖拉机，从短往长出大牌
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            result=self.play_other_suit(suit)
-            if result!=None:
-                return result
-            
-        #出队友没有的花色
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            if self.trump_in(suit): 
-                result= self.other_value(suit)
-                if result == None:
-                    result = self.play_small(suit)
-            if result!=None:
-                return [result]
-            
-        # 如果某门副牌只有一对或者只有对子，尝试出对子
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==1 and len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
-                result=self.play_large_pair(suit)
-                if result!=None:
-                    return result
-            if len(self.organized_hold_cards["other_suits_cards"][suit]["pairs"])==len(self.organized_hold_cards["other_suits_cards"][suit]["singles"]):
-                result=self.play_large_pair(suit)
-                if result!=None:
-                    return result
-        #如果某门副牌只有一张牌，尝试出单牌
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            if len(self.organized_hold_cards["other_suits_cards"][suit]["singles"])==1:
-                result=self.play_single(suit)
-                if result!=None:
-                    return result
-        #尝试出副对子
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            result=self.play_large_pair(suit)
-            if result!=None:
-                return result
-
-        #如果没有副对，尝试出主
-        result=self.play_major()
-        major_level = self.major+self.level
-        if result!=None and len(result) == 2 and (len(self.organized_hold_cards["main_suit_cards"]["pairs"]) == 1) :# 留一个主对
-            result = [self.play_small_major()]
-        if result!=None and len(result) == 1 and (self.bigger_card(result[0],major_level) == result[0] or len(self.organized_hold_cards["main_suit_cards"]["singles"]) == 1):# 最小的主太大了或主太短了
-            result = None
-        if result!=None:
-            return result
-
-        
-        #如果没有主，尝试出副单牌
-        for suit in self.organized_hold_cards["other_suits_cards"]:
-            result=self.play_single(suit)
-            if result!=None:
-                return result
-            
-        #如果只有主，正常出
-        result=self.play_major()
-        if result!=None:
-            return result
-
-        #不应该到这里
-        assert False
-        print("Error: No action generated") 
-        return None
-
-
     def gen_all(self, deck): # Generating all cardset options
         moves = []
         suit_decks = []
@@ -1546,6 +1682,3 @@ class move_generator():
                     moves.append(tracstreak+[])
                     
         return moves
-    
-        
-        

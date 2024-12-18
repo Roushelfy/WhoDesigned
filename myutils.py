@@ -279,13 +279,15 @@ def get_action_options(deck, history, level, mv_gen):
     deck = [Num2Poker(p) for p in deck]
     if len(history) == 4 or len(history) == 0: # first to play
         #return mv_gen.gen_all(deck)
-        return [mv_gen.gen_one_action()]
+        #return [mv_gen.gen_one_action()]
+        return mv_gen.gen_action_options()
     else:
         tgt = [Num2Poker(p) for p in history[0]]
         poktype = checkPokerType(history[0], level)
         if poktype == "single":
             #return mv_gen.gen_single(deck, tgt)
-            return [mv_gen.gen_single_new(history)]
+            #return [mv_gen.gen_single_new(history)]
+            return mv_gen.gen_single_options(tgt)
         elif poktype == "pair":
             #return mv_gen.gen_pair(deck, tgt)
             return [mv_gen.gen_pair_new(history)]
