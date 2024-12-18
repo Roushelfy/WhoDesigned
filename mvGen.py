@@ -95,7 +95,7 @@ class move_generator():
         self.teammate_id = (self.selfid + 2) % 4
         self.next_id = (self.selfid + 1) % 4
         self.prev_id = (self.selfid + 3) % 4
-        self.hold = deck[player]
+        self.hold = deck[player]+[]
         all_played = played[0] + played[1] + played[2] + played[3]
         self.cards_left = [card for card in range(108) if card not in all_played]
         self.organized_hold_cards = self.organize_cards(self.hold)
@@ -176,9 +176,10 @@ class move_generator():
     def gen_single_options(self,tgt):
         suit=self.get_suit(tgt[0])
         options = []
-        options.append([self.play_small(suit)])
-        options.append([self.play_large(suit)])
-        options.append([self.other_value(suit)])
+        if not self.isMajor(tgt[0]):
+            options.append([self.play_small(suit)])
+            options.append([self.play_large(suit)])
+            options.append([self.other_value(suit)])
         options.append([self.play_small()])
         options.append([self.other_value()])
         options.append([self.play_small_major()])
@@ -194,7 +195,7 @@ class move_generator():
                 return options_2
             return options_1
         if self.have_major():
-            options_2 = [option for option in options_1 if self.isMajor(options[0])]
+            options_2 = [option for option in options_1 if self.isMajor(option[0])]
             return options_2
         return options_1
     
@@ -230,7 +231,9 @@ class move_generator():
         if self.major != 'n':
             card_to_beat = self.get_card_to_beat()
             if card_to_beat!= None:
-                options.append([self.beat_card(card_to_beat)])
+                bc = self.beat_card(card_to_beat)
+                if bc != None:
+                    options.append([self.beat_card(card_to_beat)])
         
         #副单牌
         for suit in self.organized_hold_cards["other_suits_cards"]:

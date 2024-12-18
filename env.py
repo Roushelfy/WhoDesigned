@@ -869,7 +869,7 @@ class TractorEnv():
                 self.reward[self.agent_names[i]] += points
             else:
                 self.reward[self.agent_names[i]] -= points
-        self.reward[self.agent_names[player]] += 1 # 鼓励上手
+        self.reward[self.agent_names[player%4]] += 1 # 鼓励上手
 
 
     def _punish(self, player, points):
