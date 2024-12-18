@@ -8,7 +8,7 @@ if __name__ == '__main__':
         'replay_buffer_episode': 400,
         'model_pool_size': 20,
         'model_pool_name': 'model-pool',
-        'num_actors': 1,
+        'num_actors': 4,
         'episodes_per_actor': 2000,
         'gamma': 0.98,
         'lambda': 0.95,
@@ -19,7 +19,7 @@ if __name__ == '__main__':
         'lr': 3e-5,
         'value_coeff': 1,
         'entropy_coeff': 0.01,
-        'device': 'cpu',
+        'device': 'cuda',
         'ckpt_save_interval': 3,
         'ckpt_save_path': 'checkpoint/'
     }
