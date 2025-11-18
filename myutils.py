@@ -1,3 +1,4 @@
+import torch
 from collections import Counter
 
 cardscale = ['A','2','3','4','5','6','7','8','9','0','J','Q','K']
@@ -231,16 +232,74 @@ def cover_Pub(old_public, deck, major, level):
     for s in other_suit:
         suit_cards[s] = [p for p in deck_poker if p[0] == s and p[1] != level]
     suit_cards[major] = [p for p in deck_poker if isMajor(p, major, level)]
-
+    
     for s in suit_cards.keys():
-        tgt = suit_cards[s]
+        tgt = suit_cards[s]  
         suit_cards[s] = divide_suit(tgt)
 
     # 去掉各个花色不打算埋的牌
-
-
+        
+    
     # 贪心地尽量埋尽可能多的花色
     public_cards = []
 
     return old_public
     return old_public
+
+def playCard(history, hold, played, level, wrapper, mv_gen, model, selfid):
+    # generating obs
+    obs = {
+        "id": selfid,
+        "deck": [Num2Poker(p) for p in hold],
+        "history": [[Num2Poker(p) for p in move] for move in history],
+        "major": [Num2Poker(p) for p in Major],
+        "played": [[Num2Poker(p) for p in cardset] for cardset in played]
+    }
+    # generating action_options
+    action_options = get_action_options(hold, history, level, mv_gen) 
+    #print(action_options)
+    # generating state
+    state = {}
+    obs_mat, action_mask = wrapper.obsWrap(obs, action_options)
+    state['observation'] = torch.tensor(obs_mat, dtype = torch.float).unsqueeze(0)
+    state['action_mask'] = torch.tensor(action_mask, dtype = torch.float).unsqueeze(0)
+    # getting actions
+    action = obs2action(model, state)
+    response = action_intpt(action_options[action], hold)
+    return response
+
+
+def get_action_options(deck, history, level, mv_gen):
+    deck = [Num2Poker(p) for p in deck]
+    if len(history) == 4 or len(history) == 0: # first to play
+        #return mv_gen.gen_all(deck)
+        return [mv_gen.gen_one_action()]
+    else:
+        tgt = [Num2Poker(p) for p in history[0]]
+        poktype = checkPokerType(history[0], level)
+        if poktype == "single":
+            #return mv_gen.gen_single(deck, tgt)
+            return [mv_gen.gen_single_new(history)]
+        elif poktype == "pair":
+            #return mv_gen.gen_pair(deck, tgt)
+            return [mv_gen.gen_pair_new(history)]
+        elif poktype == "tractor":
+            return mv_gen.gen_tractor(deck, tgt)
+        elif poktype == "suspect":
+            return mv_gen.gen_throw(deck, tgt)    
+
+def obs2action(model, obs):
+    model.train(False) # Batch Norm inference mode
+    with torch.no_grad():
+        logits, value = model(obs)
+        action_dist = torch.distributions.Categorical(logits = logits)
+        action = action_dist.sample().item()
+    return action
+
+def action_intpt(action, deck):
+    '''
+    interpreting action(cardname) to response(dick{'player': int, 'action': list[int]})
+    action: list[str(cardnames)]
+    '''
+    action = Poker2Num_seq(action, deck)
+    return action
