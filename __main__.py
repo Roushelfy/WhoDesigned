@@ -1,26 +1,16 @@
 import json
 import os
-from model import CNNModel
-import torch
-from wrapper import cardWrapper
 from mvGen import move_generator
 from myutils import setMajor, call_Snatch, cover_Pub, playCard
 
 
 _online = os.environ.get("USER", "") == "root"
 
-# loading model
-model = CNNModel()
-
-data_dir_online = '/data/tractor_model.pt' # to be modified
-data_dir_offline = 'checkpoint/tractor_model.pt' # to be modified
 if _online:
     full_input = json.loads(input())
-    model.load_state_dict(torch.load(data_dir_online, map_location = torch.device('cpu')))
 else:
     with open("input/log_forAI.json") as fo:
         full_input = json.load(fo)
-    model.load_state_dict(torch.load(data_dir_offline, map_location = torch.device('cpu')))
 
 
 hold = []
@@ -72,8 +62,7 @@ elif curr_request["stage"] == "play":
     level = curr_request["global"]["level"]
     major = curr_request["global"]["banking"]["major"]
     setMajor(major, level)
-    # instantiate move_generator and cardwrapper 
-    card_wrapper = cardWrapper()
+    # instantiate move_generator
     mv_gen = move_generator(level, major,full_input)
     history = curr_request["history"]
     selfid = (history[3] + len(history[1])) % 4
@@ -88,8 +77,8 @@ elif curr_request["stage"] == "play":
         for player_rec in range(len(history[1])):
             played[(history[3]+player_rec) % 4].extend(history[1][player_rec])
     history_curr = history[1]
-    
-    response = playCard(history_curr, hold, played, level, card_wrapper, mv_gen, model, selfid)
+
+    response = playCard(history_curr, hold, played, level, mv_gen, selfid)
 
 print(json.dumps({
     "response":response
