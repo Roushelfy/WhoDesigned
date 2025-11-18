@@ -1,4 +1,3 @@
-import torch
 from collections import Counter
 
 cardscale = ['A','2','3','4','5','6','7','8','9','0','J','Q','K']
@@ -252,26 +251,11 @@ def cover_Pub(old_public, deck, major, level):
     # return old_public
     # return old_public
 
-def playCard(history, hold, played, level, wrapper, mv_gen, model, selfid):
-    # generating obs
-    obs = {
-        "id": selfid,
-        "deck": [Num2Poker(p) for p in hold],
-        "history": [[Num2Poker(p) for p in move] for move in history],
-        "major": [Num2Poker(p) for p in Major],
-        "played": [[Num2Poker(p) for p in cardset] for cardset in played]
-    }
+def playCard(history, hold, played, level, mv_gen, selfid):
     # generating action_options
-    action_options = get_action_options(hold, history, level, mv_gen) 
-    #print(action_options)
-    # generating state
-    state = {}
-    obs_mat, action_mask = wrapper.obsWrap(obs, action_options)
-    state['observation'] = torch.tensor(obs_mat, dtype = torch.float).unsqueeze(0)
-    state['action_mask'] = torch.tensor(action_mask, dtype = torch.float).unsqueeze(0)
-    # getting actions
-    action = obs2action(model, state)
-    response = action_intpt(action_options[action], hold)
+    action_options = get_action_options(hold, history, level, mv_gen)
+    # Since action_options always has length 1, directly use action_options[0]
+    response = action_intpt(action_options[0], hold)
     return response
 
 
@@ -295,14 +279,6 @@ def get_action_options(deck, history, level, mv_gen):
             return [mv_gen.gen_tractor_new(history)]
         elif poktype == "suspect":
             return [mv_gen.gen_throw_new(history)]    
-
-def obs2action(model, obs):
-    model.train(False) # Batch Norm inference mode
-    with torch.no_grad():
-        logits, value = model(obs)
-        action_dist = torch.distributions.Categorical(logits = logits)
-        action = action_dist.sample().item()
-    return action
 
 def action_intpt(action, deck):
     '''
