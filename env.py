@@ -135,26 +135,29 @@ class TractorEnv():
         return obs
 
     def _get_action_options(self, player):
+        self.mv_gen.reset(player,self.player_decks,self.played_cards)
         deck = [self._id2name(p) for p in self.player_decks[player]]
         if len(self.history) == 4 or len(self.history) == 0: # first to play
-            return self.mv_gen.gen_all(deck)
+            return self.mv_gen.gen_action_options()
         else:
             tgt = [self._id2name(p) for p in self.history[0]]
             poktype = self._checkPokerType(self.history[0], (player-len(self.history))%4)
             if poktype == "single":
-                return self.mv_gen.gen_single(deck, tgt)
+                return self.mv_gen.gen_single_options(tgt)
             elif poktype == "pair":
-                return self.mv_gen.gen_pair(deck, tgt)
+                return [self.mv_gen.gen_pair_new(self.history)]
             elif poktype == "tractor":
-                return self.mv_gen.gen_tractor(deck, tgt)
+                return [self.mv_gen.gen_tractor_new(self.history)]
             elif poktype == "suspect":
-                return self.mv_gen.gen_throw(deck, tgt)    
+                return [self.mv_gen.gen_throw_new(self.history)]
     
     def _done(self):
         return self.done    
     
     def _id2name(self, card_id): # card_id: int[0, 107]
         # Locate in 1 single deck
+        if type(card_id) is not int:
+            chiaya = 3
         NumInDeck = card_id % 54
         # joker and Joker:
         if NumInDeck == 52:
@@ -265,7 +268,8 @@ class TractorEnv():
         
     def _checkPokerType(self, poker, currplayer): #poker: list[int]
         level = self.level
-        poker = [self._id2name(p) for p in poker]
+        if type(poker[0]) is not str:
+            poker = [self._id2name(p) for p in poker]
         if len(poker) == 1:
             return "single" #一张牌必定为单牌
         if len(poker) == 2:
@@ -307,7 +311,8 @@ class TractorEnv():
         level = self.level
         major = self.major
         tyPoker = self._checkPokerType(poker, currplayer)
-        poker = [self._id2name(p) for p in poker]
+        if type(poker[0]) is not str:
+            poker = [self._id2name(p) for p in poker]
         assert tyPoker != "suspect", "Type 'throw' should contain common types"
         own_pok = [[self._id2name(num) for num in hold] for hold in own]
         if poker[0] in self.Major: # 主牌型应用主牌压
@@ -841,18 +846,35 @@ class TractorEnv():
         # 找到获胜方，加分
         win_id = (currplayer - 3 + win_seq) % 4
         self._reward(win_id, score)
-
+        # 鼓励整形
+        for i in range(4):
+            j = (i - currplayer + 3) % 4
+            deck_i = [self._id2name(p) for p in self.player_decks[i]]
+            for suit in self.suit_set:
+                if suit == self.major:
+                    continue
+                card_play = [p for p in hist[j] if p[0] == suit and p[1] != self.level]
+                card_after = [p for p in deck_i if p[0] == suit and p[1] != self.level]
+                if len(card_play) > 0 and len(card_after) == 0:
+                    self.reward[self.agent_names[i]] += 1
         return win_id
     
     def _reward(self, player, points):
         if (player-self.banker_pos) % 2 != 0: # farmer getting points
             self.score += points
-        self.reward = {}
+        if not self.reward:
+            self.reward = {}
+            self.reward[self.agent_names[0]] = 0
+            self.reward[self.agent_names[1]] = 0
+            self.reward[self.agent_names[2]] = 0
+            self.reward[self.agent_names[3]] = 0
         for i in range(4):
             if (i-player) % 2 == 0:
-                self.reward[self.agent_names[i]] = points
+                self.reward[self.agent_names[i]] += points
             else:
-                self.reward[self.agent_names[i]] = -points
+                self.reward[self.agent_names[i]] -= points
+        self.reward[self.agent_names[player%4]] += 1 # 鼓励上手
+
 
     def _punish(self, player, points):
         if (player-self.banker_pos) % 2 != 0:
