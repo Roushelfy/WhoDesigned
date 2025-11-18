@@ -148,21 +148,21 @@ class move_generator():
                         other_value_singles[suit].remove(singles[0])
                         existvalue = 1
                         break
+            if existvalue == 0: # 拆副对
+                for suit, pairs in other_useless_pairs.items():
+                    if len(pairs) > 0 and len_left >= 2:
+                        public_cards.append(pairs[0])
+                        public_cards.append(pairs[0])
+                        other_useless_pairs[suit].remove(pairs[0])
+                        existvalue = 1
+                        break
             if existvalue == 0:# 补一张主
-               for major_single in major_singles.items():
+               for major_single in major_singles:
                    if major_single not in major_pairs and not self.is_value(major_single):
                        public_cards.append(major_single)
                        major_singles.remove(major_single)
                        existvalue = 1
                        break
-            if existvalue == 0: # 拆副对
-                for suit, pairs in other_useless_pairs.items():
-                    if len(pairs) > 0:
-                        public_cards.append(pairs[0])
-                        other_useless_pairs[suit].remove(pairs[0])
-                        other_useless_singles[suit].append(pairs[0])
-                        existvalue = 1
-                        break
             if existvalue == 0: # 拆主对
                 public_cards.append(major_pairs[0])
                 major_singles.append(major_pairs[0])
@@ -203,8 +203,8 @@ class move_generator():
         options = []
         #拖拉机：
         for suit in self.organized_hold_cards["other_suits_cards"]:
-            options.append(self.play_tractor(suit))
-        options.append(self.play_major_tractor())
+            options.append(self.play_tractor(suit,first=True))
+        options.append(self.play_major_tractor(first=True))
 
         #大牌
         for suit in self.organized_hold_cards["other_suits_cards"]:
@@ -462,7 +462,9 @@ class move_generator():
                             return self.play_value_tachi(2,suit)
                     else:
                         if self.have_pair(suit):
-                            return self.beat_pair(second_cards)#尝试盖过上家
+                            if (not self.isMajor(second_cards[0])):
+                                return self.beat_pair(second_cards)#尝试盖过上家
+                            return self.play_small_pair(suit)
                         else:
                             return self.play_small_tachi(2,suit)
                  elif (len(history)==3): #下家出牌
@@ -478,8 +480,11 @@ class move_generator():
                         else:
                             return self.play_value_tachi(2,suit)
                     else:# 对面大
+                        big_cards = self.bigger_pair(first_cards,third_cards)
                         if self.have_pair(suit):
-                            return self.beat_pair(self.bigger_pair(first_cards,third_cards))#尝试盖过对面
+                            if (not self.isMajor(big_cards[0])):
+                                return self.beat_pair(big_cards)#尝试盖过对面
+                            return self.play_small_pair(suit)
                         else:
                             return self.play_small_tachi(2,suit)
         else:#主牌
@@ -537,20 +542,20 @@ class move_generator():
         result = None
         if not self.isMajor(first_card):#非主
             if len(history) == 1 or len(history) == 3: #对面出牌
-                result = self.play_tractor(suit) # 有拖打拖
+                result = self.play_tractor(suit,tractor_len) # 有拖打拖
                 if result == None:# 无拖垫牌
                     result = self.play_small_pair_tachi(tractor_len,suit)
             elif len(history) == 2: #队友出牌
-                result = self.play_tractor(suit) # 有拖打拖
+                result = self.play_tractor(suit,tractor_len) # 有拖打拖
                 if result == None:# 无拖垫牌
                     result = self.play_value_pair_tachi(tractor_len,suit)
         else:#主牌
             if len(history) == 1 or len(history) == 3: #对面出牌
-                result = self.play_major_tractor() # 有拖打拖
+                result = self.play_major_tractor(tractor_len) # 有拖打拖
                 if result == None:# 无拖垫牌
                     result = self.play_small_major_pair_tachi(tractor_len)
             elif len(history) == 2: #队友出牌
-                result = self.play_major_tractor() # 有拖打拖
+                result = self.play_major_tractor(tractor_len) # 有拖打拖
                 if result == None:# 无拖垫牌
                     result = self.play_major_value_pair_tachi(tractor_len)
         return result
@@ -668,10 +673,10 @@ class move_generator():
         result=None
         #查看是否有拖拉机：
         for suit in self.organized_hold_cards["other_suits_cards"]:
-            result=self.play_tractor(suit)
+            result=self.play_tractor(suit,first=True)
             if result!=None:
                 return result
-        result=self.play_major_tractor()
+        result=self.play_major_tractor(first=True)
         if result!=None:
             return result
 
@@ -931,7 +936,7 @@ class move_generator():
                 return self.organized_hold_cards["other_suits_cards"][suit]["singles"][0]
         return None
     
-    def play_large(self,suit):
+    def play_large(self,suit):# 出最大的牌
         if self.have_single(suit):
             largest_single = self.organized_hold_cards["other_suits_cards"][suit]["singles"][-1]
             return largest_single
@@ -1095,14 +1100,26 @@ class move_generator():
     
     #打拖拉机
 
-    def play_major_tractor(self):
+    def play_major_tractor(self,length=2,first=False):
         if self.have_major_tractor():
-            return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
+            if first:
+                return self.tractor_to_action(self.organized_hold_cards["main_suit_cards"]["tractors"][-1])
+            for tractor in reversed(self.organized_hold_cards["main_suit_cards"]["tractors"]):
+                if int(tractor[2])>=length:
+                    tractor_part = tractor[0:2]
+                    tractor_part = tractor_part + str(length)
+                    return self.tractor_to_action(tractor)
         return None
     
-    def play_tractor(self,suit):
+    def play_tractor(self,suit,length=2,first=False):
         if self.have_tractor(suit):
-            return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
+            if first:
+                return self.tractor_to_action(self.organized_hold_cards["other_suits_cards"][suit]["tractors"][-1])
+            for tractor in reversed(self.organized_hold_cards["other_suits_cards"][suit]["tractors"]):
+                if int(tractor[2])>=length:
+                    tractor_part = tractor[0:2]
+                    tractor_part = tractor_part + str(length)
+                    return self.tractor_to_action(tractor)
         return None
     
     #打很多张

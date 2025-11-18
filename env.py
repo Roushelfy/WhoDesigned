@@ -156,6 +156,8 @@ class TractorEnv():
     
     def _id2name(self, card_id): # card_id: int[0, 107]
         # Locate in 1 single deck
+        if type(card_id) is not int:
+            chiaya = 3
         NumInDeck = card_id % 54
         # joker and Joker:
         if NumInDeck == 52:
@@ -266,7 +268,8 @@ class TractorEnv():
         
     def _checkPokerType(self, poker, currplayer): #poker: list[int]
         level = self.level
-        poker = [self._id2name(p) for p in poker]
+        if type(poker[0]) is not str:
+            poker = [self._id2name(p) for p in poker]
         if len(poker) == 1:
             return "single" #一张牌必定为单牌
         if len(poker) == 2:
@@ -308,7 +311,8 @@ class TractorEnv():
         level = self.level
         major = self.major
         tyPoker = self._checkPokerType(poker, currplayer)
-        poker = [self._id2name(p) for p in poker]
+        if type(poker[0]) is not str:
+            poker = [self._id2name(p) for p in poker]
         assert tyPoker != "suspect", "Type 'throw' should contain common types"
         own_pok = [[self._id2name(num) for num in hold] for hold in own]
         if poker[0] in self.Major: # 主牌型应用主牌压
